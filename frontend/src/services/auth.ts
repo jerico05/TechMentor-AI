@@ -22,21 +22,56 @@ export interface SessionSyncInput {
   lastname?: string;
 }
 
+/** Évite les appels /auth/session concurrents (login + onAuthStateChanged). */
+let syncInFlight: Promise<UserPublic> | null = null;
+let lastSyncedUid: string | null = null;
+
+async function resolveIdToken(firebaseUser?: FirebaseUser): Promise<string> {
+  if (firebaseUser) {
+    return firebaseUser.getIdToken(false);
+  }
+  const token = await getFirebaseIdToken(false);
+  if (!token) {
+    throw new Error("Aucune session Firebase active.");
+  }
+  return token;
+}
+
 /** Sync the Firebase session with the backend and return the local user profile. */
 export async function syncBackendSession(
   profile?: SessionSyncInput,
   firebaseUser?: FirebaseUser,
 ): Promise<UserPublic> {
-  const token = firebaseUser
-    ? await firebaseUser.getIdToken()
-    : await getFirebaseIdToken();
-  if (!token) {
-    throw new Error("Aucune session Firebase active.");
+  const uid = firebaseUser?.uid ?? firebaseAuth.currentUser?.uid ?? null;
+  if (uid && uid === lastSyncedUid && syncInFlight) {
+    return syncInFlight;
   }
-  const { data } = await api.post<UserPublic>("/auth/session", profile ?? {}, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return data;
+
+  if (syncInFlight) {
+    return syncInFlight;
+  }
+
+  syncInFlight = (async () => {
+    const token = await resolveIdToken(firebaseUser);
+    const { data } = await api.post<UserPublic>("/auth/session", profile ?? {}, {
+      headers: { Authorization: `Bearer ${token}` },
+      timeout: 15_000,
+    });
+    lastSyncedUid = uid;
+    return data;
+  })();
+
+  try {
+    return await syncInFlight;
+  } finally {
+    syncInFlight = null;
+  }
+}
+
+/** Réinitialise le cache de sync (déconnexion). */
+export function resetAuthSyncCache(): void {
+  syncInFlight = null;
+  lastSyncedUid = null;
 }
 
 /** Fetch the current user profile from the backend. */
@@ -47,6 +82,7 @@ export async function fetchCurrentUser(): Promise<UserPublic> {
   }
   const { data } = await api.get<UserPublic>("/auth/me", {
     headers: { Authorization: `Bearer ${token}` },
+    timeout: 10_000,
   });
   return data;
 }
@@ -58,7 +94,7 @@ export async function registerWithEmail(
   lastname: string,
 ): Promise<{ firebaseUser: FirebaseUser; user: UserPublic }> {
   const credential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
-  const user = await syncBackendSession({ firstname, lastname });
+  const user = await syncBackendSession({ firstname, lastname }, credential.user);
   return { firebaseUser: credential.user, user };
 }
 
@@ -67,7 +103,7 @@ export async function loginWithEmail(
   password: string,
 ): Promise<{ firebaseUser: FirebaseUser; user: UserPublic }> {
   const credential = await signInWithEmailAndPassword(firebaseAuth, email, password);
-  const user = await syncBackendSession();
+  const user = await syncBackendSession(undefined, credential.user);
   return { firebaseUser: credential.user, user };
 }
 
@@ -84,7 +120,6 @@ export async function loginWithGithub(): Promise<{ firebaseUser: FirebaseUser; u
   provider.addScope("user:email");
   provider.addScope("read:user");
   const credential = await signInWithPopup(firebaseAuth, provider);
-  await credential.user.reload();
   const user = await syncBackendSession(undefined, credential.user);
   return { firebaseUser: credential.user, user };
 }
@@ -94,6 +129,7 @@ export async function requestPasswordReset(email: string): Promise<void> {
 }
 
 export async function logout(): Promise<void> {
+  resetAuthSyncCache();
   await signOut(firebaseAuth);
 }
 
@@ -145,6 +181,10 @@ export function formatAuthError(err: unknown, fallback: string): string {
 
   if (e.message?.includes("Network Error") || e.status === 0) {
     return "Impossible de joindre le backend. Lancez-le sur http://localhost:8001";
+  }
+
+  if (e.code === "ECONNABORTED" || e.message?.includes("timeout")) {
+    return "Le serveur met trop de temps à répondre. Vérifiez que le backend est démarré.";
   }
 
   if (e.status === 404) {

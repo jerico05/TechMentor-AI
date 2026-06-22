@@ -12,13 +12,18 @@ interface AuthGuardProps {
 /** Redirect unauthenticated users to /login. */
 export function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuthStore();
+  const { isAuthenticated, isLoading, user } = useAuthStore();
 
   React.useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.replace("/login");
     }
   }, [isAuthenticated, isLoading, router]);
+
+  // Session déjà connue (login ou rehydratation) : accès immédiat.
+  if (isAuthenticated && user) {
+    return <>{children}</>;
+  }
 
   if (isLoading) {
     return (
@@ -28,9 +33,5 @@ export function AuthGuard({ children }: AuthGuardProps) {
     );
   }
 
-  if (!isAuthenticated) {
-    return null;
-  }
-
-  return <>{children}</>;
+  return null;
 }

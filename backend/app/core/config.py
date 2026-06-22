@@ -68,7 +68,7 @@ class Settings(BaseSettings):
     rodium_api_key: str = "change-me"
     rodium_base_url: str = "https://api.rodiumai.io/v1"
     rodium_default_model: str = "mistralai/mistral-small-latest"
-    rodium_embedding_model: str = "text-embedding-3-small"
+    rodium_embedding_model: str = "openai/text-embedding-3-small"
     rodium_timeout_seconds: int = 60
 
     # ---- Firebase Auth ----
@@ -104,6 +104,16 @@ class Settings(BaseSettings):
     def _parse_cors(cls, value: object) -> object:
         if isinstance(value, str) and not value.startswith("["):
             return [v.strip() for v in value.split(",") if v.strip()]
+        return value
+
+    @field_validator("rodium_embedding_model", mode="after")
+    @classmethod
+    def _normalize_embedding_model(cls, value: str) -> str:
+        """RodiumAI expects `<provider>/<model>` slugs (e.g. openai/text-embedding-3-small)."""
+        if "/" in value:
+            return value
+        if value.startswith("text-embedding") or value.startswith("gpt-"):
+            return f"openai/{value}"
         return value
 
     @model_validator(mode="after")

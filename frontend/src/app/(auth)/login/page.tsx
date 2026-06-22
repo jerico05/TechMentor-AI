@@ -47,10 +47,10 @@ export default function LoginPage() {
     try {
       const { user } = await loginWithEmail(data.email, data.password);
       setUser(user);
-      router.push("/dashboard");
+      router.replace("/dashboard");
+      return;
     } catch (err) {
       setError(formatAuthError(err, "Connexion impossible. Réessayez."));
-    } finally {
       setLoading(false);
     }
   }
@@ -62,10 +62,10 @@ export default function LoginPage() {
       const result =
         provider === "google" ? await loginWithGoogle() : await loginWithGithub();
       setUser(result.user);
-      router.push("/dashboard");
+      router.replace("/dashboard");
+      return;
     } catch (err) {
       setError(formatAuthError(err, "Connexion OAuth impossible."));
-    } finally {
       setLoading(false);
     }
   }

@@ -59,10 +59,10 @@ export default function RegisterPage() {
         data.lastname,
       );
       setUser(user);
-      router.push("/dashboard");
+      router.replace("/dashboard");
+      return;
     } catch (err) {
       setError(formatAuthError(err, "Inscription impossible. Réessayez."));
-    } finally {
       setLoading(false);
     }
   }
@@ -74,10 +74,10 @@ export default function RegisterPage() {
       const result =
         provider === "google" ? await loginWithGoogle() : await loginWithGithub();
       setUser(result.user);
-      router.push("/dashboard");
+      router.replace("/dashboard");
+      return;
     } catch (err) {
       setError(formatAuthError(err, "Inscription OAuth impossible."));
-    } finally {
       setLoading(false);
     }
   }

@@ -40,6 +40,12 @@ export const useAuthStore = create<AuthState>()(
     {
       name: "tm-auth",
       partialize: (state) => ({ user: state.user, isAuthenticated: state.isAuthenticated }),
+      onRehydrateStorage: () => (state) => {
+        // Session persistée : ne pas bloquer le dashboard en attendant Firebase.
+        if (state?.isAuthenticated && state.user) {
+          state.isLoading = false;
+        }
+      },
     },
   ),
 );
