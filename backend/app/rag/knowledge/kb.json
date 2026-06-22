@@ -1,0 +1,98 @@
+[
+  {
+    "id": "roadmap-backend-1",
+    "category": "roadmap",
+    "title": "Roadmap Backend Developer — Mois 1",
+    "content": "Mois 1 Backend Developer : maîtriser les fondamentaux HTTP/REST, concevoir des APIs avec Java ou Python, modéliser une base SQL (PostgreSQL), écrire des requêtes JOIN et index. Projet : API CRUD avec authentification JWT. Ressources : documentation Spring Boot ou FastAPI, tutoriels SQL avancé."
+  },
+  {
+    "id": "roadmap-backend-2",
+    "category": "roadmap",
+    "title": "Roadmap Backend Developer — Mois 2",
+    "content": "Mois 2 Backend Developer : Docker et conteneurisation, tests unitaires et d'intégration, Git workflow (branches, PR). Projet : dockeriser l'API du mois 1, ajouter tests pytest ou JUnit. Apprendre les bonnes pratiques 12-factor app."
+  },
+  {
+    "id": "roadmap-backend-3",
+    "category": "roadmap",
+    "title": "Roadmap Backend Developer — Mois 3",
+    "content": "Mois 3 Backend Developer : cache Redis, messaging basique, déploiement CI/CD. Projet : API avec cache et pipeline GitHub Actions. Préparer entretiens techniques sur system design léger."
+  },
+  {
+    "id": "roadmap-ds-1",
+    "category": "roadmap",
+    "title": "Roadmap Data Scientist — Mois 1",
+    "content": "Mois 1 Data Scientist : Python scientifique (NumPy, Pandas), nettoyage et exploration de données, visualisation matplotlib/seaborn. Projet : analyse exploratoire d'un dataset public Kaggle."
+  },
+  {
+    "id": "roadmap-ds-2",
+    "category": "roadmap",
+    "title": "Roadmap Data Scientist — Mois 2",
+    "content": "Mois 2 Data Scientist : statistiques inférentielles, régression, classification avec scikit-learn, validation croisée. Projet : modèle de prédiction avec rapport métriques (precision, recall, F1)."
+  },
+  {
+    "id": "roadmap-ds-3",
+    "category": "roadmap",
+    "title": "Roadmap Data Scientist — Mois 3",
+    "content": "Mois 3 Data Scientist : introduction deep learning (TensorFlow ou PyTorch), NLP ou computer vision selon objectif. Projet : notebook reproductible + présentation des résultats."
+  },
+  {
+    "id": "roadmap-de-1",
+    "category": "roadmap",
+    "title": "Roadmap Data Engineer — Mois 1",
+    "content": "Mois 1 Data Engineer : SQL avancé, modélisation dimensionnelle, ETL basique avec Python. Projet : pipeline ingestion CSV vers PostgreSQL avec transformations."
+  },
+  {
+    "id": "roadmap-de-2",
+    "category": "roadmap",
+    "title": "Roadmap Data Engineer — Mois 2",
+    "content": "Mois 2 Data Engineer : Apache Airflow pour orchestration, Docker pour les jobs. Projet : DAG Airflow planifiant un ETL quotidien."
+  },
+  {
+    "id": "roadmap-de-3",
+    "category": "roadmap",
+    "title": "Roadmap Data Engineer — Mois 3",
+    "content": "Mois 3 Data Engineer : Apache Spark pour big data, bonnes pratiques data quality. Projet : pipeline Spark traitant un dataset volumineux."
+  },
+  {
+    "id": "cert-aws",
+    "category": "certification",
+    "title": "Certification AWS Cloud Practitioner",
+    "content": "AWS Certified Cloud Practitioner : concepts cloud (IaaS, PaaS, SaaS), services EC2, S3, RDS, Lambda, IAM. Préparation 4-6 semaines. Examen fondamental pour valider les bases AWS avant Solutions Architect."
+  },
+  {
+    "id": "cert-azure",
+    "category": "certification",
+    "title": "Certification Azure Fundamentals AZ-900",
+    "content": "Microsoft Azure Fundamentals AZ-900 : modèles de déploiement Azure, compute (VM, App Service), storage, réseaux de base. Idéal pour étudiants visant l'écosystème Microsoft."
+  },
+  {
+    "id": "cert-gcp",
+    "category": "certification",
+    "title": "Certification Google Cloud Associate",
+    "content": "Google Cloud Associate Cloud Engineer : Compute Engine, Cloud Storage, Kubernetes Engine (GKE), IAM GCP. Forte demande pour data engineering et ML sur GCP."
+  },
+  {
+    "id": "res-docker",
+    "category": "resource",
+    "title": "Apprendre Docker",
+    "content": "Docker : images, conteneurs, Dockerfile, docker-compose, volumes et réseaux. Commencer par containeriser une app web simple. Documentation officielle Docker + Play with Docker. Compétence essentielle backend et data engineer."
+  },
+  {
+    "id": "res-git",
+    "category": "resource",
+    "title": "Maîtriser Git et GitHub",
+    "content": "Git : commit, branch, merge, rebase, pull request, code review. GitHub : Issues, Actions CI, profil développeur. Un portfolio GitHub actif est crucial pour stages et premiers emplois en informatique."
+  },
+  {
+    "id": "res-sql",
+    "category": "resource",
+    "title": "SQL avancé",
+    "content": "SQL avancé : JOINs, sous-requêtes, window functions, index, EXPLAIN, normalisation. Pratiquer sur PostgreSQL. Compétence transversale backend, data scientist et data engineer."
+  },
+  {
+    "id": "res-stage",
+    "category": "resource",
+    "title": "Obtenir un stage en informatique",
+    "content": "Pour décrocher un stage : CV technique clair, GitHub avec 2-3 projets démontrables, profil LinkedIn à jour, candidatures ciblées, préparation entretien technique (algo + system design léger). Réseauter via meetups et alumni université."
+  }
+]

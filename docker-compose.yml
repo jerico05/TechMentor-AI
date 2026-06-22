@@ -1,0 +1,166 @@
+# TechMentor AI — stack Docker (dev local)
+#
+# Prérequis :
+#   - backend/.env          (SECRET_KEY, Firebase — voir backend/.env.example)
+#   - backend/firebase-service-account.json
+#   - frontend/.env.local   (NEXT_PUBLIC_FIREBASE_*)
+#
+# Lancer :
+#   docker compose up --build
+#
+# URLs :
+#   Frontend  http://localhost:3000
+#   Backend   http://localhost:8000/docs
+#
+# Worker Celery (optionnel, quand implémenté) :
+#   docker compose --profile worker up --build
+
+name: techmentor
+
+services:
+  # ===== PostgreSQL =====
+  postgres:
+    image: postgres:16-alpine
+    container_name: tm-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-techmentor}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-techmentor}
+      POSTGRES_DB: ${POSTGRES_DB:-techmentor}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-techmentor} -d ${POSTGRES_DB:-techmentor}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===== Qdrant (vector DB for RAG) =====
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    container_name: tm-qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:6333/ >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ===== Redis =====
+  redis:
+    image: redis:7-alpine
+    container_name: tm-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ===== FastAPI backend =====
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tm-backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      # Override Neon/local host → service Docker postgres
+      POSTGRES_USER: ${POSTGRES_USER:-techmentor}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-techmentor}
+      POSTGRES_DB: ${POSTGRES_DB:-techmentor}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-techmentor}:${POSTGRES_PASSWORD:-techmentor}@postgres:5432/${POSTGRES_DB:-techmentor}
+      SYNC_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-techmentor}:${POSTGRES_PASSWORD:-techmentor}@postgres:5432/${POSTGRES_DB:-techmentor}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      QDRANT_URL: http://qdrant:6333
+      FIREBASE_CREDENTIALS_PATH: /app/firebase-service-account.json
+      RUN_MIGRATIONS: "1"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - backend_uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  # ===== Celery worker (optionnel — profile worker) =====
+  worker:
+    profiles: ["worker"]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tm-worker
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-techmentor}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-techmentor}
+      POSTGRES_DB: ${POSTGRES_DB:-techmentor}
+      POSTGRES_HOST: postgres
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-techmentor}:${POSTGRES_PASSWORD:-techmentor}@postgres:5432/${POSTGRES_DB:-techmentor}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      QDRANT_URL: http://qdrant:6333
+      RUN_MIGRATIONS: "0"
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    command: ["celery", "-A", "app.workers.celery_app", "worker", "--loglevel=info", "--concurrency=2"]
+
+  # ===== Next.js frontend (dev + hot reload) =====
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: tm-frontend
+    restart: unless-stopped
+    env_file:
+      - ./frontend/.env.local
+    environment:
+      BACKEND_URL: http://backend:8000
+      NEXT_PUBLIC_API_BASE_URL: ""
+      NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-TechMentor AI}
+      WATCHPACK_POLLING: "true"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  qdrant_data:
+  redis_data:
+  backend_uploads:
+  frontend_node_modules:
