@@ -20,7 +20,7 @@
 - [Structure du monorepo](#structure-du-monorepo)
 - [Variables d'environnement](#variables-denvironnement)
 - [Roadmap de développement](#roadmap-de-développement)
-- [Qualité & CI](#qualité--ci)
+- [Qualité](#qualité)
 
 ---
 
@@ -83,7 +83,6 @@ worker **Celery** afin de garder les requêtes API rapides.
 | Auth | JWT maison + OAuth Google & GitHub (Authlib) |
 | Parsing CV | PyMuPDF, pdfplumber, python-docx |
 | Conteneurs | Docker, Docker Compose |
-| CI | GitHub Actions |
 
 ---
 
@@ -170,7 +169,6 @@ techmentor-ai/
 │   │   ├── lib/  services/  store/  types/
 │   ├── Dockerfile
 │   └── package.json
-├── .github/workflows/ci.yml
 ├── docker-compose.yml
 └── README.md
 ```
@@ -192,7 +190,7 @@ techmentor-ai/
 
 | Phase | Contenu | Statut |
 |---|---|---|
-| **P1 - Infra** | Monorepo, Docker compose, FastAPI + Next.js scaffolds, Alembic, CI | ✅ **Livré** |
+| **P1 - Infra** | Monorepo, Docker compose, FastAPI + Next.js scaffolds, Alembic | ✅ **Livré** |
 | **P2 - Auth & Profil** | Firebase Auth, OAuth Google+GitHub, `student_profiles` | ✅ **Livré** |
 | **P3 - Upload & Parsing CV** | Upload PDF/DOCX, extraction LLM (Celery) | ✅ **Livré** |
 | **P4 - Référentiel** | Seed `skills` + 3 `career_paths` | ✅ **Livré** |
@@ -205,15 +203,7 @@ techmentor-ai/
 
 ---
 
-## Qualité & CI
-
-Le workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) s'exécute sur
-chaque push/PR et :
-
-- **Backend** : `ruff check` + `ruff format --check` + `mypy` (non-bloquant) +
-  `pytest` avec couverture.
-- **Frontend** : `npm run lint` + `tsc --noEmit` + `npm run build`.
-- **Docker** : build des deux images en smoke test.
+## Qualité
 
 Commandes locales utiles :
 
