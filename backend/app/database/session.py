@@ -26,7 +26,7 @@ def _build_connect_args() -> dict:
     return {}
 
 
-# `pool_pre_ping` ensures stale pooled connections are recycled — important with
+# `pool_pre_ping` ensures stale pooled connections are recycled - important with
 # serverless Postgres (Neon) that may idle-timeout and suspend compute.
 engine: AsyncEngine = create_async_engine(
     settings.database_url,
@@ -49,18 +49,13 @@ AsyncSessionLocal = async_sessionmaker(
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """FastAPI dependency: yields a scoped async session.
-
-    Commits on success, rolls back on exception, always closes.
-    """
+    """FastAPI dependency: yields a scoped async session."""
     async with AsyncSessionLocal() as session:
         try:
             yield session
         except Exception:
             await session.rollback()
             raise
-        finally:
-            await session.close()
 
 
 @asynccontextmanager
@@ -72,5 +67,3 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
         except Exception:
             await session.rollback()
             raise
-        finally:
-            await session.close()

@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from app.schemas.common import ORMModel
@@ -52,10 +55,21 @@ class AnalysisOut(ORMModel):
     level: str
     owned_skills: list[str]
     missing_skills: list[str]
+    created_at: datetime
+    projects_completed: int = 0
+    level_reason: str | None = None
 
 
 class RoadmapGenerateRequest(BaseModel):
     career_path_id: int | None = None
+    duration_months: Literal[3, 6, 12] | None = None
+
+
+class RoadmapSuggestionOut(BaseModel):
+    suggested_months: Literal[3, 6, 12]
+    level: str | None = None
+    missing_skills_count: int
+    reason: str
 
 
 class RoadmapOut(ORMModel):
@@ -63,13 +77,45 @@ class RoadmapOut(ORMModel):
     career_path_id: int
     content: dict
     status: str
+    created_at: datetime
+
+
+class ProjectDataSourceOut(BaseModel):
+    name: str
+    url: str
+    note: str = ""
+
+
+class RecommendedProjectOut(BaseModel):
+    title: str
+    tagline: str
+    description: str
+    track: str = "dev"
+    difficulty: str
+    skills_practiced: list[str] = Field(default_factory=list)
+    estimated_weeks: int = 3
+    impact: str | None = None
+    stack: list[str] = Field(default_factory=list)
+    data_sources: list[ProjectDataSourceOut] = Field(default_factory=list)
+    deliverables: list[str] = Field(default_factory=list)
 
 
 class ProjectRecommendationOut(BaseModel):
     level: str
     score: int
     missing_skills: list[str]
-    projects: list[dict]
+    career_name: str = ""
+    career_slug: str = ""
+    projects: list[RecommendedProjectOut]
+
+
+class ProjectCompleteRequest(BaseModel):
+    title: str
+    career_slug: str | None = None
+
+
+class ProjectCompletionsOut(BaseModel):
+    completed: list[str]
 
 
 class QuizSubmitRequest(BaseModel):
@@ -77,11 +123,23 @@ class QuizSubmitRequest(BaseModel):
     answers: dict[str, int]
 
 
+class QuizQuestionOut(BaseModel):
+    id: str
+    question: str
+    options: list[str]
+
+
+class QuizGenerateResponse(BaseModel):
+    quiz_id: str
+    questions: list[QuizQuestionOut]
+
+
 class QuizAttemptOut(ORMModel):
     id: int
     score: int
     total_questions: int
     feedback: str | None
+    created_at: datetime
 
 
 class QuizSubmitResponse(BaseModel):

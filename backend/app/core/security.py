@@ -18,6 +18,12 @@ from passlib.context import CryptContext
 from app.core.config import settings
 from app.core.exceptions import UnauthorizedError
 
+# Legacy JWT helpers (password reset flows) - not used for primary Firebase auth.
+JWT_ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
+REFRESH_TOKEN_EXPIRE_DAYS = 30
+PASSWORD_RESET_TOKEN_EXPIRE_HOURS = 1
+
 # bcrypt is the industry standard; `bcrypt` rounds are managed by passlib.
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=12)
 
@@ -57,29 +63,29 @@ def _create_token(
     }
     if extra:
         payload.update(extra)
-    return jwt.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
+    return jwt.encode(payload, settings.secret_key, algorithm=JWT_ALGORITHM)
 
 
 def create_access_token(subject: str, extra: dict[str, Any] | None = None) -> tuple[str, int]:
     """Return (token, expires_in_seconds)."""
-    delta = timedelta(minutes=settings.access_token_expire_minutes)
+    delta = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     return _create_token(subject, "access", extra=extra, expires_delta=delta), int(delta.total_seconds())
 
 
 def create_refresh_token(subject: str) -> str:
-    delta = timedelta(days=settings.refresh_token_expire_days)
+    delta = timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     return _create_token(subject, "refresh", expires_delta=delta)
 
 
 def create_password_reset_token(subject: str) -> str:
-    delta = timedelta(hours=settings.password_reset_token_expire_hours)
+    delta = timedelta(hours=PASSWORD_RESET_TOKEN_EXPIRE_HOURS)
     return _create_token(subject, "reset", expires_delta=delta)
 
 
 def decode_token(token: str, expected_kind: TokenKind) -> dict[str, Any]:
     """Decode + validate kind. Raises `UnauthorizedError` on any failure."""
     try:
-        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.jwt_algorithm])
+        payload = jwt.decode(token, settings.secret_key, algorithms=[JWT_ALGORITHM])
     except JWTError as exc:
         raise UnauthorizedError("Invalid or expired token") from exc
 

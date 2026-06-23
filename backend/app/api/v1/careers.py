@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 
 from app.core.deps import DBSession
 from app.core.exceptions import NotFoundError
@@ -17,7 +17,16 @@ def get_analysis_service(db: DBSession) -> AnalysisService:
 
 
 @router.get("", response_model=list[CareerPathOut], summary="List career paths")
-async def list_careers(service: AnalysisService = Depends(get_analysis_service)) -> list[CareerPathOut]:
+async def list_careers(
+    response: Response,
+    service: AnalysisService = Depends(get_analysis_service),
+) -> list[CareerPathOut]:
+    from app.core.config import settings
+
+    if settings.is_production:
+        response.headers["Cache-Control"] = "public, max-age=3600"
+    else:
+        response.headers["Cache-Control"] = "no-store"
     careers = await service.list_careers()
     return [
         CareerPathOut(

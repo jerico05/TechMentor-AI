@@ -1,7 +1,7 @@
 """Health & readiness endpoints (unauthenticated).
 
-`/health`  — liveness probe: process is up.
-`/health/ready` — readiness probe: DB + Redis + Qdrant reachable.
+`/health`  - liveness probe: process is up.
+`/health/ready` - readiness probe: DB + Redis + Qdrant reachable.
 """
 
 from __future__ import annotations

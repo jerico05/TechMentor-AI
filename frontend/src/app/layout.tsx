@@ -6,9 +6,11 @@ import { fontClassName } from "@/lib/fonts";
 import { cn } from "@/lib/utils";
 import "./globals.css";
 
+const ICON_VERSION = "3";
+
 export const metadata: Metadata = {
   title: {
-    default: `${APP_NAME} — Mentor IA pour étudiants en informatique`,
+    default: `${APP_NAME} | Mentor IA pour étudiants en informatique`,
     template: `%s · ${APP_NAME}`,
   },
   description:
@@ -16,6 +18,15 @@ export const metadata: Metadata = {
   applicationName: APP_NAME,
   authors: [{ name: "TechMentor AI" }],
   keywords: ["mentor IA", "carrière", "informatique", "roadmap", "étudiant", "RAG"],
+  icons: {
+    icon: [
+      { url: `/favicon.ico?v=${ICON_VERSION}`, sizes: "any" },
+      { url: `/icon-32.png?v=${ICON_VERSION}`, type: "image/png", sizes: "32x32" },
+      { url: `/icon-256.png?v=${ICON_VERSION}`, type: "image/png", sizes: "256x256" },
+    ],
+    apple: [{ url: `/icon-256.png?v=${ICON_VERSION}`, type: "image/png", sizes: "256x256" }],
+    shortcut: [`/favicon.ico?v=${ICON_VERSION}`],
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

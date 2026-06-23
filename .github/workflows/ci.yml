@@ -41,14 +41,22 @@ jobs:
         run: ruff format --check .
 
       - name: Type-check (mypy)
-        run: mypy app || true   # non-blocking until full annotations land
+        run: mypy app
+
+      - name: Alembic migrations
+        env:
+          SECRET_KEY: ci-secret-key-with-enough-length-to-pass-validation
+          APP_ENV: local
+          SYNC_DATABASE_URL: sqlite:///./alembic_ci.db
+        run: alembic upgrade head
 
       - name: Test (pytest)
         env:
           SECRET_KEY: ci-secret-key-with-enough-length-to-pass-validation
           APP_ENV: local
           DATABASE_URL: ""
-          RODIUM_API_KEY: ci-dummy
+          MISTRAL_API_KEY: ci-dummy
+          GEMINI_API_KEY: ci-dummy
         run: pytest -q --cov=app --cov-report=term-missing
 
   # ==================== Frontend ====================
@@ -70,7 +78,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
-        run: npm ci || npm install
+        run: npm ci
 
       - name: Lint
         run: npm run lint

@@ -1,4 +1,4 @@
-"""Firebase Admin SDK — verify ID tokens issued by the client SDK.
+"""Firebase Admin SDK - verify ID tokens issued by the client SDK.
 
 The frontend authenticates users via Firebase Auth (email/password, Google,
 GitHub). The backend only verifies ID tokens and syncs a local `User` row.
@@ -6,6 +6,7 @@ GitHub). The backend only verifies ID tokens and syncs a local `User` row.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any
 
@@ -14,6 +15,7 @@ from firebase_admin import auth, credentials
 
 from app.core.config import settings
 from app.core.exceptions import UnauthorizedError
+from app.core.firebase_keys import verify_id_token_local
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -48,12 +50,45 @@ def get_firebase_app() -> firebase_admin.App:
     return _app
 
 
+def normalize_firebase_claims(claims: dict[str, Any]) -> dict[str, Any]:
+    """Align PyJWT claims with Firebase Admin (`uid` alias for `sub`)."""
+    normalized = dict(claims)
+    if not normalized.get("uid") and normalized.get("sub"):
+        normalized["uid"] = normalized["sub"]
+    return normalized
+
+
 def verify_firebase_token(id_token: str) -> dict[str, Any]:
     """Decode and validate a Firebase ID token. Raises `UnauthorizedError` on failure."""
     try:
-        return auth.verify_id_token(id_token, app=get_firebase_app())
+        return normalize_firebase_claims(verify_id_token_local(id_token))
+    except Exception:
+        try:
+            return normalize_firebase_claims(auth.verify_id_token(id_token, app=get_firebase_app()))
+        except Exception as admin_exc:
+            raise UnauthorizedError("Token Firebase invalide ou expiré.") from admin_exc
+
+
+def _verify_and_enrich_token(id_token: str) -> dict[str, Any]:
+    """Sync helper - verify token and enrich claims (runs in thread pool)."""
+    return enrich_claims_email(verify_firebase_token(id_token))
+
+
+def warmup_firebase() -> None:
+    """Prefetch Google public keys so the first auth request is not blocked."""
+    from app.core.firebase_keys import get_firebase_public_keys
+
+    get_firebase_app()
+    try:
+        get_firebase_public_keys()
+        logger.info("firebase.certs_warmed")
     except Exception as exc:
-        raise UnauthorizedError("Token Firebase invalide ou expiré.") from exc
+        logger.warning("firebase.certs_warmup_failed", error=str(exc))
+
+
+async def verify_firebase_token_async(id_token: str) -> dict[str, Any]:
+    """Non-blocking Firebase token verification for async routes."""
+    return await asyncio.to_thread(_verify_and_enrich_token, id_token)
 
 
 def map_firebase_provider(claims: dict[str, Any]) -> str:

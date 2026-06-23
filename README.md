@@ -31,17 +31,17 @@ parcours :
 
 1. Crée un compte (email/mot de passe ou OAuth Google/GitHub).
 2. Complète son profil étudiant (université, filière, objectif carrière).
-3. Téléverse son CV (PDF/DOCX) — extraction automatique des compétences.
-4. Connecte son GitHub — enrichissement du profil technique.
+3. Téléverse son CV (PDF/DOCX) - extraction automatique des compétences.
+4. Connecte son GitHub - enrichissement du profil technique.
 5. Choisit un métier cible (Backend, Data Scientist, Data Engineer, …).
 6. Obtient une **skill gap analysis** + un **score** sur 100.
 7. Reçoit une **roadmap personnalisée** mois par mois + des projets recommandés.
 8. Échange avec un **mentor IA** contextuel (RAG sur une base de connaissances).
 9. Passe des **quiz** d'évaluation et voit son score évoluer.
 
-Le LLM est fourni par [**RodiumAI**](https://www.rodiumai.io/), une passerelle
-OpenAI-compatible qui expose GPT-4o, Claude, Llama et DeepSeek derrière une API
-unique.
+Le LLM est fourni par [**Mistral**](https://mistral.ai/) (`ministral-3b-latest`)
+et les embeddings par [**Gemini**](https://ai.google.dev/) (`gemini-embedding-001`),
+via des APIs OpenAI-compatible.
 
 ---
 
@@ -57,12 +57,12 @@ unique.
         ┌─────────────────────────────────────────┐
         │            FastAPI (ASGI)                 │
         │  routers · services · repositories       │
-        │  ai/ (RodiumAI client) · rag/ (Qdrant)   │
+        │  services/ (LLM) · rag/ (Qdrant + Gemini) │
         └───┬──────────┬──────────┬────────┬───────┘
             ▼          ▼          ▼        ▼
-       PostgreSQL   Qdrant     Redis    RodiumAI
-       (métier)    (RAG KB)   (cache,   (LLM +
-                               broker)   embeddings)
+       PostgreSQL   Qdrant     Redis    Mistral
+       (métier)    (RAG KB)   (cache,   (LLM) +
+                               broker)   Gemini (embeddings)
 ```
 
 Les tâches longues (parsing CV, fetch GitHub, indexing RAG) sont déléguées à un
@@ -79,7 +79,7 @@ worker **Celery** afin de garder les requêtes API rapides.
 | Base métier | PostgreSQL 16 |
 | Vector DB | Qdrant (collection `kb_chunks`, 1536d) |
 | Cache / broker | Redis 7 |
-| LLM / embeddings | RodiumAI (OpenAI-compatible) via `openai` SDK + LangChain |
+| LLM / embeddings | Mistral (LLM) + Gemini (embeddings) via SDK `openai` |
 | Auth | JWT maison + OAuth Google & GitHub (Authlib) |
 | Parsing CV | PyMuPDF, pdfplumber, python-docx |
 | Conteneurs | Docker, Docker Compose |
@@ -96,7 +96,7 @@ worker **Celery** afin de garder les requêtes API rapides.
 git clone <repo-url> techmentor-ai
 cd techmentor-ai
 cp backend/.env.example backend/.env
-#   → éditez au moins : SECRET_KEY, RODIUM_API_KEY
+#   → éditez au moins : SECRET_KEY, MISTRAL_API_KEY, GEMINI_API_KEY
 
 # 2. Tout lancer
 docker compose up -d --build
@@ -114,7 +114,7 @@ curl http://localhost:8000/health/ready
 | PostgreSQL | `localhost:5432` (user/db `techmentor`) |
 | Redis | `localhost:6379` |
 
-Arrêt : `docker compose down` — réinitialiser la BDD : `docker compose down -v`.
+Arrêt : `docker compose down` - réinitialiser la BDD : `docker compose down -v`.
 
 ---
 
@@ -126,7 +126,7 @@ Arrêt : `docker compose down` — réinitialiser la BDD : `docker compose down 
 cd backend
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env                                 # renseigner SECRET_KEY + RodiumAI
+cp .env.example .env                                 # renseigner SECRET_KEY + Mistral + Gemini
 
 # Démarrez Postgres + Redis + Qdrant (locaux ou via docker compose up postgres redis qdrant)
 alembic upgrade head
@@ -180,7 +180,7 @@ techmentor-ai/
 ## Variables d'environnement
 
 - **Backend** : voir [`backend/.env.example`](backend/.env.example).
-  Obligatoires au minimum : `SECRET_KEY`, `RODIUM_API_KEY`.
+  Obligatoires au minimum : `SECRET_KEY`, `MISTRAL_API_KEY`, `GEMINI_API_KEY`.
 - **Frontend** : voir [`frontend/.env.example`](frontend/.env.example).
   En dev, aucune valeur n'est requise (proxy local).
 
@@ -192,16 +192,16 @@ techmentor-ai/
 
 | Phase | Contenu | Statut |
 |---|---|---|
-| **P1 — Infra** | Monorepo, Docker compose, FastAPI + Next.js scaffolds, Alembic, CI | ✅ **Livré** |
-| **P2 — Auth & Profil** | Firebase Auth, OAuth Google+GitHub, `student_profiles` | ✅ **Livré** |
-| **P3 — Upload & Parsing CV** | Upload PDF/DOCX, extraction LLM (Celery) | ✅ **Livré** |
-| **P4 — Référentiel** | Seed `skills` + 3 `career_paths` | ✅ **Livré** |
-| **P5 — Gap & Score** | Skill gap analysis + score pondéré + niveau | ✅ **Livré** |
-| **P6 — RAG KB** | Qdrant, ingestion roadmaps/certs/ressources statiques | ✅ **Livré** |
-| **P7 — Roadmap IA** | Génération LLM mois par mois + reco projets | ✅ **Livré** |
-| **P8 — Mentor IA** | Chat SSE streaming contextuel + historique | ✅ **Livré** |
-| **P9 — Historique** | Timeline analyses/roadmaps/conversations/quiz | ✅ **Livré** |
-| **P10 — Évaluation** | Quiz, réévaluation score, nouvelle roadmap auto | ✅ **Livré** |
+| **P1 - Infra** | Monorepo, Docker compose, FastAPI + Next.js scaffolds, Alembic, CI | ✅ **Livré** |
+| **P2 - Auth & Profil** | Firebase Auth, OAuth Google+GitHub, `student_profiles` | ✅ **Livré** |
+| **P3 - Upload & Parsing CV** | Upload PDF/DOCX, extraction LLM (Celery) | ✅ **Livré** |
+| **P4 - Référentiel** | Seed `skills` + 3 `career_paths` | ✅ **Livré** |
+| **P5 - Gap & Score** | Skill gap analysis + score pondéré + niveau | ✅ **Livré** |
+| **P6 - RAG KB** | Qdrant, ingestion roadmaps/certs/ressources statiques | ✅ **Livré** |
+| **P7 - Roadmap IA** | Génération LLM mois par mois + reco projets | ✅ **Livré** |
+| **P8 - Mentor IA** | Chat SSE streaming contextuel + historique | ✅ **Livré** |
+| **P9 - Historique** | Timeline analyses/roadmaps/conversations/quiz | ✅ **Livré** |
+| **P10 - Évaluation** | Quiz, réévaluation score, nouvelle roadmap auto | ✅ **Livré** |
 
 ---
 

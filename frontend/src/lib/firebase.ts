@@ -13,15 +13,8 @@ const firebaseConfig = {
   }),
 };
 
-function createFirebaseApp(): FirebaseApp {
-  if (getApps().length > 0) {
-    return getApp();
-  }
-  return initializeApp(firebaseConfig);
-}
-
-export const firebaseApp = createFirebaseApp();
-export const firebaseAuth: Auth = getAuth(firebaseApp);
+let firebaseApp: FirebaseApp | null = null;
+let firebaseAuth: Auth | null = null;
 
 export function isFirebaseConfigured(): boolean {
   return Boolean(
@@ -31,9 +24,21 @@ export function isFirebaseConfigured(): boolean {
   );
 }
 
+export function getFirebaseAuth(): Auth {
+  if (!isFirebaseConfigured()) {
+    throw new Error("Firebase n'est pas configuré.");
+  }
+  if (!firebaseAuth) {
+    firebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+    firebaseAuth = getAuth(firebaseApp);
+  }
+  return firebaseAuth;
+}
+
 /** Return a fresh Firebase ID token for API calls (avoids circular imports with api.ts). */
 export async function getFirebaseIdToken(forceRefresh = false): Promise<string | null> {
-  const user = firebaseAuth.currentUser;
+  if (!isFirebaseConfigured()) return null;
+  const user = getFirebaseAuth().currentUser;
   if (!user) return null;
   return user.getIdToken(forceRefresh);
 }

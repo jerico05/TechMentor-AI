@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ClipboardCheck, Loader2 } from "lucide-react";
 import * as React from "react";
 
@@ -12,6 +12,7 @@ import { generateQuiz, submitQuiz, type QuizQuestion, type QuizSubmitResponse } 
 import { isApiError } from "@/services/api";
 
 export default function QuizPage() {
+  const queryClient = useQueryClient();
   const [quizId, setQuizId] = React.useState<string | null>(null);
   const [questions, setQuestions] = React.useState<QuizQuestion[]>([]);
   const [answers, setAnswers] = React.useState<Record<string, number>>({});
@@ -32,6 +33,11 @@ export default function QuizPage() {
     onSuccess: (data) => {
       setResult(data);
       setQuizId(null);
+      void queryClient.invalidateQueries({ queryKey: ["roadmap"] });
+      void queryClient.invalidateQueries({ queryKey: ["analysis"] });
+      void queryClient.invalidateQueries({ queryKey: ["quiz", "history"] });
+      void queryClient.invalidateQueries({ queryKey: ["projects", "recommendations"] });
+      void queryClient.invalidateQueries({ queryKey: ["roadmap", "suggestion"] });
     },
   });
 
@@ -90,6 +96,11 @@ export default function QuizPage() {
             {submitMut.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Soumettre
           </Button>
+          {submitMut.isError && (
+            <p className="text-center text-sm text-destructive">
+              {isApiError(submitMut.error) ? submitMut.error.error.message : "Erreur lors de la soumission."}
+            </p>
+          )}
         </div>
       )}
 

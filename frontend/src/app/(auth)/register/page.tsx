@@ -8,9 +8,13 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { Button } from "@/components/ui/button";
+import { FirebaseConfigAlert } from "@/components/auth/firebase-config-alert";
+import { OAuthProviderButtons } from "@/components/auth/oauth-provider-buttons";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { isFirebaseConfigured } from "@/lib/firebase";
+import { setSessionCookie } from "@/lib/session-cookie";
 import {
   loginWithGithub,
   loginWithGoogle,
@@ -58,8 +62,9 @@ export default function RegisterPage() {
         data.firstname,
         data.lastname,
       );
+      setSessionCookie();
       setUser(user);
-      router.push("/dashboard");
+      router.replace("/dashboard");
     } catch (err) {
       setError(formatAuthError(err, "Inscription impossible. Réessayez."));
     } finally {
@@ -73,8 +78,9 @@ export default function RegisterPage() {
     try {
       const result =
         provider === "google" ? await loginWithGoogle() : await loginWithGithub();
+      setSessionCookie();
       setUser(result.user);
-      router.push("/dashboard");
+      router.replace("/dashboard");
     } catch (err) {
       setError(formatAuthError(err, "Inscription OAuth impossible."));
     } finally {
@@ -83,23 +89,17 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-[85vh] max-w-md flex-col justify-center px-4 py-8">
-      <div className="glass-card animate-scale-in p-8 opacity-0 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
+    <main className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-8">
+      <div className="crextio-shell w-full max-w-md p-6 sm:p-8">
         <div className="mb-6 text-center">
           <h1 className="text-2xl font-extrabold tracking-tight text-[hsl(var(--navy))]">Créer un compte</h1>
           <p className="mt-2 text-sm text-muted-foreground">Lancez votre mentorat en moins d&apos;une minute.</p>
         </div>
         <div className="space-y-4">
-          {!firebaseReady && (
-            <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-              Firebase n&apos;est pas configuré. Renseignez les variables{" "}
-              <code className="text-xs">NEXT_PUBLIC_FIREBASE_*</code> dans{" "}
-              <code className="text-xs">.env.local</code>.
-            </p>
-          )}
+          <FirebaseConfigAlert />
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1">
                 <Label htmlFor="firstname">Prénom</Label>
                 <Input id="firstname" autoComplete="given-name" {...register("firstname")} />
@@ -124,9 +124,8 @@ export default function RegisterPage() {
             </div>
             <div className="space-y-1">
               <Label htmlFor="password">Mot de passe</Label>
-              <Input
+              <PasswordInput
                 id="password"
-                type="password"
                 autoComplete="new-password"
                 {...register("password")}
               />
@@ -136,9 +135,8 @@ export default function RegisterPage() {
             </div>
             <div className="space-y-1">
               <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
-              <Input
+              <PasswordInput
                 id="confirmPassword"
-                type="password"
                 autoComplete="new-password"
                 {...register("confirmPassword")}
               />
@@ -147,40 +145,16 @@ export default function RegisterPage() {
               )}
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button type="submit" className="w-full" disabled={loading || !firebaseReady}>
+            <Button type="submit" variant="default" className="w-full" disabled={loading || !firebaseReady}>
               {loading ? "Création…" : "Créer mon compte"}
             </Button>
           </form>
 
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">ou</span>
-            </div>
-          </div>
-
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
+          <OAuthProviderButtons
             disabled={loading || !firebaseReady}
-            onClick={() => handleOAuth("google")}
-          >
-            S&apos;inscrire avec Google
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            disabled={loading || !firebaseReady}
-            onClick={() => handleOAuth("github")}
-          >
-            S&apos;inscrire avec GitHub
-          </Button>
-
-          {error && <p className="text-sm text-destructive">{error}</p>}
+            onGoogle={() => handleOAuth("google")}
+            onGithub={() => handleOAuth("github")}
+          />
 
           <div className="pt-2 text-center text-sm text-muted-foreground">
             Déjà inscrit ?{" "}

@@ -11,6 +11,10 @@ export async function upsertMyProfile(payload: StudentProfileInput): Promise<Stu
   return data;
 }
 
+export async function deleteMyProfile(): Promise<void> {
+  await api.delete("/profiles/me");
+}
+
 export function computeProfileProgress(profile: StudentProfile | null): number {
   if (!profile) return 0;
   const fields = [

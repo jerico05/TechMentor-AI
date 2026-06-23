@@ -2,55 +2,55 @@
   {
     "id": "roadmap-backend-1",
     "category": "roadmap",
-    "title": "Roadmap Backend Developer — Mois 1",
+    "title": "Roadmap Backend Developer - Mois 1",
     "content": "Mois 1 Backend Developer : maîtriser les fondamentaux HTTP/REST, concevoir des APIs avec Java ou Python, modéliser une base SQL (PostgreSQL), écrire des requêtes JOIN et index. Projet : API CRUD avec authentification JWT. Ressources : documentation Spring Boot ou FastAPI, tutoriels SQL avancé."
   },
   {
     "id": "roadmap-backend-2",
     "category": "roadmap",
-    "title": "Roadmap Backend Developer — Mois 2",
+    "title": "Roadmap Backend Developer - Mois 2",
     "content": "Mois 2 Backend Developer : Docker et conteneurisation, tests unitaires et d'intégration, Git workflow (branches, PR). Projet : dockeriser l'API du mois 1, ajouter tests pytest ou JUnit. Apprendre les bonnes pratiques 12-factor app."
   },
   {
     "id": "roadmap-backend-3",
     "category": "roadmap",
-    "title": "Roadmap Backend Developer — Mois 3",
+    "title": "Roadmap Backend Developer - Mois 3",
     "content": "Mois 3 Backend Developer : cache Redis, messaging basique, déploiement CI/CD. Projet : API avec cache et pipeline GitHub Actions. Préparer entretiens techniques sur system design léger."
   },
   {
     "id": "roadmap-ds-1",
     "category": "roadmap",
-    "title": "Roadmap Data Scientist — Mois 1",
+    "title": "Roadmap Data Scientist - Mois 1",
     "content": "Mois 1 Data Scientist : Python scientifique (NumPy, Pandas), nettoyage et exploration de données, visualisation matplotlib/seaborn. Projet : analyse exploratoire d'un dataset public Kaggle."
   },
   {
     "id": "roadmap-ds-2",
     "category": "roadmap",
-    "title": "Roadmap Data Scientist — Mois 2",
+    "title": "Roadmap Data Scientist - Mois 2",
     "content": "Mois 2 Data Scientist : statistiques inférentielles, régression, classification avec scikit-learn, validation croisée. Projet : modèle de prédiction avec rapport métriques (precision, recall, F1)."
   },
   {
     "id": "roadmap-ds-3",
     "category": "roadmap",
-    "title": "Roadmap Data Scientist — Mois 3",
+    "title": "Roadmap Data Scientist - Mois 3",
     "content": "Mois 3 Data Scientist : introduction deep learning (TensorFlow ou PyTorch), NLP ou computer vision selon objectif. Projet : notebook reproductible + présentation des résultats."
   },
   {
     "id": "roadmap-de-1",
     "category": "roadmap",
-    "title": "Roadmap Data Engineer — Mois 1",
+    "title": "Roadmap Data Engineer - Mois 1",
     "content": "Mois 1 Data Engineer : SQL avancé, modélisation dimensionnelle, ETL basique avec Python. Projet : pipeline ingestion CSV vers PostgreSQL avec transformations."
   },
   {
     "id": "roadmap-de-2",
     "category": "roadmap",
-    "title": "Roadmap Data Engineer — Mois 2",
+    "title": "Roadmap Data Engineer - Mois 2",
     "content": "Mois 2 Data Engineer : Apache Airflow pour orchestration, Docker pour les jobs. Projet : DAG Airflow planifiant un ETL quotidien."
   },
   {
     "id": "roadmap-de-3",
     "category": "roadmap",
-    "title": "Roadmap Data Engineer — Mois 3",
+    "title": "Roadmap Data Engineer - Mois 3",
     "content": "Mois 3 Data Engineer : Apache Spark pour big data, bonnes pratiques data quality. Projet : pipeline Spark traitant un dataset volumineux."
   },
   {

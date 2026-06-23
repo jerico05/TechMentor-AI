@@ -1,13 +1,8 @@
 import { api } from "@/services/api";
 import { getFirebaseIdToken } from "@/lib/firebase";
+import type { CVFile } from "@/types";
 
-export interface CVFile {
-  id: number;
-  original_filename: string;
-  mime_type: string;
-  status: string;
-  extracted_text: string | null;
-}
+export type { CVFile } from "@/types";
 
 export async function fetchMyCV(): Promise<CVFile | null> {
   const { data } = await api.get<CVFile | null>("/cv/me");

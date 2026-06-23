@@ -46,13 +46,8 @@ class ConflictError(AppError):
 
 
 class ValidationError(AppError):
-    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
     code = "validation_error"
-
-
-class RateLimitError(AppError):
-    status_code = status.HTTP_429_TOO_MANY_REQUESTS
-    code = "rate_limited"
 
 
 def _error_payload(code: str, message: str, details: Any = None) -> dict[str, Any]:

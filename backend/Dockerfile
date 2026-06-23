@@ -1,4 +1,4 @@
-# TechMentor AI — Backend image (FastAPI + Celery share this base).
+# TechMentor AI - Backend image (FastAPI + Celery share this base).
 # Multi-stage: builder caches wheels, final image stays lean.
 
 # ---------- Builder ----------

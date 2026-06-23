@@ -6,6 +6,30 @@ import { getFirebaseIdToken } from "@/lib/firebase";
 import type { ApiError } from "@/types";
 import { API_BASE_URL } from "@/lib/constants";
 
+let cachedToken: string | null = null;
+let cacheUntil = 0;
+
+async function resolveAuthToken(): Promise<string | null> {
+  const now = Date.now();
+  if (cachedToken && cacheUntil > now) {
+    return cachedToken;
+  }
+  const token = await getFirebaseIdToken();
+  if (token) {
+    cachedToken = token;
+    cacheUntil = now + 55_000;
+  } else {
+    cachedToken = null;
+    cacheUntil = 0;
+  }
+  return token;
+}
+
+export function clearAuthTokenCache(): void {
+  cachedToken = null;
+  cacheUntil = 0;
+}
+
 /**
  * Pre-configured axios instance.
  *
@@ -16,11 +40,15 @@ export const api: AxiosInstance = axios.create({
   baseURL: `${API_BASE_URL}/api/v1`,
   headers: { "Content-Type": "application/json" },
   withCredentials: true,
-  timeout: 30_000,
+  timeout: 15_000,
 });
 
 api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
-  const token = await getFirebaseIdToken();
+  const existingAuth = config.headers?.Authorization ?? config.headers?.authorization;
+  if (existingAuth) {
+    return config;
+  }
+  const token = await resolveAuthToken();
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
   }

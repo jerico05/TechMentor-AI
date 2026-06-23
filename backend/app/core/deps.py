@@ -8,7 +8,7 @@ from fastapi import Depends, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import UnauthorizedError
-from app.core.firebase import enrich_claims_email, verify_firebase_token
+from app.core.firebase import verify_firebase_token_async
 from app.database.session import get_db
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
@@ -29,7 +29,7 @@ async def get_current_user(
 ) -> User:
     """Resolve the user from a verified Firebase ID token."""
     token = _extract_bearer(authorization)
-    claims = enrich_claims_email(verify_firebase_token(token))
+    claims = await verify_firebase_token_async(token)
 
     uid = claims.get("uid")
     if not uid:
@@ -48,11 +48,3 @@ async def get_current_user(
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
-
-
-async def get_current_active_superuser(current: CurrentUser) -> User:
-    if not current.is_superuser:
-        from app.core.exceptions import ForbiddenError
-
-        raise ForbiddenError("Admin privileges required")
-    return current

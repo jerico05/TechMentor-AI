@@ -5,7 +5,6 @@ const config: Config = {
   content: [
     "./src/app/**/*.{ts,tsx}",
     "./src/components/**/*.{ts,tsx}",
-    "./src/features/**/*.{ts,tsx}",
   ],
   theme: {
     container: {
@@ -46,6 +45,7 @@ const config: Config = {
         },
         navy: {
           DEFAULT: "hsl(var(--navy))",
+          dark: "hsl(var(--navy-dark))",
           foreground: "hsl(var(--navy-foreground))",
         },
       },
@@ -55,6 +55,11 @@ const config: Config = {
         sm: "calc(var(--radius) - 8px)",
         "3xl": "1.5rem",
         "4xl": "2rem",
+        shell: "var(--shell-radius)",
+      },
+      boxShadow: {
+        crextio: "0 8px 40px rgba(26, 43, 75, 0.08)",
+        "crextio-sm": "0 4px 24px rgba(26, 43, 75, 0.06)",
       },
       fontFamily: {
         sans: ['"Plus Jakarta Sans Variable"', "system-ui", "Segoe UI", "sans-serif"],
@@ -88,15 +93,37 @@ const config: Config = {
           "0%, 100%": { transform: "translateY(0)" },
           "50%": { transform: "translateY(-4px)" },
         },
+        "pin-drop": {
+          "0%": { opacity: "0", transform: "translate(-50%, -120%) scale(0.35)" },
+          "70%": { opacity: "1", transform: "translate(-50%, -88%) scale(1.08)" },
+          "100%": { opacity: "1", transform: "translate(-50%, -92%) scale(1)" },
+        },
+        "card-rise": {
+          from: { opacity: "0", transform: "translateY(28px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        "badge-pop": {
+          "0%": { opacity: "0", transform: "scale(0.5)" },
+          "70%": { transform: "scale(1.12)" },
+          "100%": { opacity: "1", transform: "scale(1)" },
+        },
+        "connector-grow": {
+          from: { transform: "scaleY(0)", opacity: "0" },
+          to: { transform: "scaleY(1)", opacity: "1" },
+        },
       },
       animation: {
-        "fade-in": "fade-in 0.4s ease-out forwards",
-        "slide-up": "slide-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards",
-        "slide-down": "slide-down 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards",
-        "scale-in": "scale-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards",
+        "fade-in": "fade-in 0.25s ease-out forwards",
+        "slide-up": "slide-up 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards",
+        "slide-down": "slide-down 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards",
+        "scale-in": "scale-in 0.22s cubic-bezier(0.22, 1, 0.36, 1) forwards",
         shimmer: "shimmer 2s linear infinite",
         "pulse-soft": "pulse-soft 2s ease-in-out infinite",
         float: "float 3s ease-in-out infinite",
+        "pin-drop": "pin-drop 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards",
+        "card-rise": "card-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards",
+        "badge-pop": "badge-pop 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards",
+        "connector-grow": "connector-grow 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards",
       },
       transitionTimingFunction: {
         smooth: "cubic-bezier(0.22, 1, 0.36, 1)",

@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 
 from app.core.deps import CurrentUser, DBSession
-from app.schemas.mvp import QuizAttemptOut, QuizSubmitRequest, QuizSubmitResponse
+from app.schemas.mvp import QuizAttemptOut, QuizGenerateResponse, QuizSubmitRequest, QuizSubmitResponse
 from app.services.quiz_service import QuizService
 
 router = APIRouter()
@@ -15,12 +15,13 @@ def get_quiz_service(db: DBSession) -> QuizService:
     return QuizService(db)
 
 
-@router.post("/generate", summary="Generate technical quiz")
+@router.post("/generate", response_model=QuizGenerateResponse, summary="Generate technical quiz")
 async def generate_quiz(
     current: CurrentUser,
     service: QuizService = Depends(get_quiz_service),
-) -> dict:
-    return await service.generate(current.id)
+) -> QuizGenerateResponse:
+    result = await service.generate(current.id)
+    return QuizGenerateResponse.model_validate(result)
 
 
 @router.post("/submit", response_model=QuizSubmitResponse, summary="Submit quiz answers")

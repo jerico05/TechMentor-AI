@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 
 from app.core.deps import CurrentUser, DBSession
-from app.schemas.mvp import RoadmapGenerateRequest, RoadmapOut
+from app.schemas.mvp import RoadmapGenerateRequest, RoadmapOut, RoadmapSuggestionOut
 from app.services.roadmap_service import RoadmapService
 
 router = APIRouter()
@@ -15,13 +15,27 @@ def get_roadmap_service(db: DBSession) -> RoadmapService:
     return RoadmapService(db)
 
 
+@router.get("/suggestion", response_model=RoadmapSuggestionOut, summary="Suggested roadmap duration")
+async def suggest_roadmap_duration(
+    current: CurrentUser,
+    service: RoadmapService = Depends(get_roadmap_service),
+    career_path_id: int | None = None,
+) -> RoadmapSuggestionOut:
+    suggestion = await service.suggest_duration(current.id, career_path_id)
+    return RoadmapSuggestionOut.model_validate(suggestion)
+
+
 @router.post("/generate", response_model=RoadmapOut, summary="Generate personalized roadmap")
 async def generate_roadmap(
     payload: RoadmapGenerateRequest,
     current: CurrentUser,
     service: RoadmapService = Depends(get_roadmap_service),
 ) -> RoadmapOut:
-    roadmap = await service.generate(current.id, payload.career_path_id)
+    roadmap = await service.generate(
+        current.id,
+        payload.career_path_id,
+        payload.duration_months,
+    )
     return RoadmapOut.model_validate(roadmap)
 
 

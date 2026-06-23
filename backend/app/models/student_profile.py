@@ -1,4 +1,4 @@
-"""Student profile model (Module 2 — Profil Étudiant)."""
+"""Student profile model (Module 2 - Profil Étudiant)."""
 
 from __future__ import annotations
 

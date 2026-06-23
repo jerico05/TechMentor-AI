@@ -1,13 +1,31 @@
 import { api } from "@/services/api";
+import type { ProjectRecommendation } from "@/types";
 
-export interface ProjectRecommendation {
-  level: string;
-  score: number;
-  missing_skills: string[];
-  projects: { title: string; description: string }[];
-}
+export type { ProjectRecommendation, RecommendedProject, ProjectDataSource } from "@/types";
 
 export async function fetchProjectRecommendations(): Promise<ProjectRecommendation> {
-  const { data } = await api.get<ProjectRecommendation>("/projects/recommendations");
+  const { data } = await api.get<ProjectRecommendation>("/projects/recommendations", {
+    timeout: 120_000,
+  });
   return data;
+}
+
+export async function fetchProjectCompletions(): Promise<string[]> {
+  const { data } = await api.get<{ completed: string[] }>("/projects/completions");
+  return data.completed;
+}
+
+export async function markProjectComplete(title: string, careerSlug?: string): Promise<string[]> {
+  const { data } = await api.post<{ completed: string[] }>("/projects/complete", {
+    title,
+    career_slug: careerSlug ?? null,
+  });
+  return data.completed;
+}
+
+export async function unmarkProjectComplete(title: string): Promise<string[]> {
+  const { data } = await api.delete<{ completed: string[] }>("/projects/complete", {
+    data: { title },
+  });
+  return data.completed;
 }

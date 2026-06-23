@@ -1,4 +1,4 @@
-# TechMentor AI — Frontend
+# TechMentor AI - Frontend
 
 Next.js 14 (App Router) + TypeScript + Tailwind CSS + shadcn/ui style components,
 TanStack Query for server state and Zustand for client state.

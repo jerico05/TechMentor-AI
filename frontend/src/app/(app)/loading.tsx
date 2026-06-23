@@ -1,8 +1,4 @@
+/** Instant route transition: thin bar, no full-page spinner. */
 export default function AppLoading() {
-  return (
-    <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4">
-      <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
-      <p className="text-sm text-muted-foreground">Chargement…</p>
-    </div>
-  );
+  return <div className="h-0.5 w-full animate-pulse bg-primary/40" aria-hidden />;
 }

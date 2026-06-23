@@ -7,13 +7,13 @@ import re
 
 from app.core.config import settings
 from app.core.logging import get_logger
-from app.services.rodium_client import get_rodium_client
+from app.services.llm_client import get_llm_client
 
 logger = get_logger(__name__)
 
 
 async def extract_skills_from_text(text: str, known_skills: list[str]) -> list[str]:
-    """Extract skill names from CV/GitHub text using LLM + fallback keyword match."""
+    """Extract skill names from CV/GitHub text using keyword match + optional LLM."""
     if not text.strip():
         return []
 
@@ -24,6 +24,9 @@ async def extract_skills_from_text(text: str, known_skills: list[str]) -> list[s
         if re.search(rf"\b{re.escape(skill)}\b", text, re.I):
             found.add(skill)
 
+    if not settings.mistral_api_key or settings.mistral_api_key == "change-me":
+        return sorted(found)
+
     snippet = text[:6000]
     prompt = f"""Extrais les compétences techniques du texte suivant.
 Réponds UNIQUEMENT avec un JSON array de strings, ex: ["Python", "SQL"].
@@ -33,12 +36,17 @@ Texte:
 {snippet}"""
 
     try:
-        client = get_rodium_client()
-        completion = await client.chat.completions.create(
-            model=settings.rodium_default_model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.2,
-            max_tokens=512,
+        import asyncio
+
+        client = get_llm_client()
+        completion = await asyncio.wait_for(
+            client.chat.completions.create(
+                model=settings.mistral_default_model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.2,
+                max_tokens=512,
+            ),
+            timeout=settings.llm_timeout_seconds,
         )
         raw = completion.choices[0].message.content or "[]"
         match = re.search(r"\[.*\]", raw, re.S)

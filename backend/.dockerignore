@@ -38,7 +38,7 @@ coverage.xml
 uploads/*
 !uploads/.gitkeep
 
-# Secrets — never bake into images
+# Secrets - never bake into images
 .env
 .env.*
 !.env.example

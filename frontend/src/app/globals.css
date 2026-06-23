@@ -4,35 +4,38 @@
 
 @layer base {
   :root {
-    --background: 214 32% 94%;
-    --foreground: 222 47% 11%;
+    /* Crextio palette */
+    --background: 214 45% 93%;
+    --foreground: 213 52% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 213 52% 12%;
 
-    --primary: 221 83% 53%;
+    --primary: 217 91% 60%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 214 28% 90%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary: 214 35% 91%;
+    --secondary-foreground: 213 40% 25%;
 
-    --muted: 214 20% 92%;
-    --muted-foreground: 220 9% 46%;
+    --muted: 214 30% 92%;
+    --muted-foreground: 215 14% 46%;
 
-    --accent: 199 89% 48%;
+    --accent: 217 91% 60%;
     --accent-foreground: 0 0% 100%;
 
-    --navy: 222 47% 14%;
+    --navy: 213 52% 18%;
+    --navy-dark: 215 28% 17%;
     --navy-foreground: 210 40% 98%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 214 24% 88%;
-    --input: 214 24% 88%;
-    --ring: 221 83% 53%;
+    --border: 214 28% 90%;
+    --input: 214 28% 90%;
+    --ring: 217 91% 60%;
 
-    --radius: 1.25rem;
+    --radius: 1.5rem;
+    --shell-radius: 2.5rem;
   }
 
   * {
@@ -45,9 +48,9 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    background-image: radial-gradient(ellipse at 20% 0%, hsl(214 60% 96%) 0%, transparent 50%),
-      radial-gradient(ellipse at 80% 100%, hsl(221 40% 92%) 0%, transparent 50%);
+    background-color: hsl(var(--background));
     min-height: 100vh;
+    overflow-x: clip;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -58,61 +61,117 @@
   h3,
   h4 {
     @apply font-semibold tracking-tight;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.025em;
   }
 }
 
 @layer components {
+  /* Conteneur principal Crextio (dashboard) */
+  .crextio-shell {
+    @apply rounded-[var(--shell-radius)] bg-white shadow-[0_8px_40px_rgba(26,43,75,0.08)];
+  }
+
+  /* Cartes blanches - style Crextio */
   .glass-card {
-    @apply rounded-3xl border border-white/60 bg-white/70 shadow-[0_8px_32px_rgba(15,23,42,0.06)] backdrop-blur-xl transition-all duration-300 ease-out;
+    @apply rounded-[2rem] bg-white text-card-foreground shadow-[0_4px_24px_rgba(26,43,75,0.06)] transition-all duration-300 ease-out;
   }
 
   .glass-card-interactive {
-    @apply glass-card hover:-translate-y-1 hover:border-white/90 hover:shadow-[0_16px_48px_rgba(15,23,42,0.1)] active:scale-[0.99];
+    @apply glass-card hover:-translate-y-0.5 hover:shadow-[0_12px_36px_rgba(26,43,75,0.1)] active:scale-[0.995];
   }
 
   .glass-card-dark {
-    @apply rounded-3xl border border-white/10 bg-[hsl(var(--navy))] text-[hsl(var(--navy-foreground))] shadow-[0_8px_32px_rgba(15,23,42,0.2)] transition-all duration-300 ease-out;
+    @apply rounded-[2rem] bg-[hsl(var(--navy-dark))] text-[hsl(var(--navy-foreground))] shadow-[0_8px_32px_rgba(15,23,42,0.18)] transition-all duration-300 ease-out;
   }
 
+  /* Navigation pills Crextio */
   .nav-pill {
-    @apply relative rounded-full px-4 py-2 text-sm font-medium text-muted-foreground transition-all duration-200 ease-out hover:bg-white/50 hover:text-foreground;
+    @apply relative z-0 inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-transparent px-4 py-2.5 text-sm font-medium text-muted-foreground outline-none transition-colors duration-200 ease-out hover:bg-secondary/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/30;
+    -webkit-tap-highlight-color: transparent;
   }
 
   .nav-pill-active {
-    @apply rounded-full bg-[hsl(var(--navy))] px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-navy/20;
+    @apply relative z-0 inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-transparent bg-[hsl(var(--navy))] px-5 py-2.5 text-sm font-semibold text-white outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/30;
+    -webkit-tap-highlight-color: transparent;
   }
 
+  .nav-pill-track {
+    @apply flex flex-wrap items-center justify-center gap-1.5 px-2 py-2;
+  }
+
+  /* Stat pills (métriques en haut du dashboard) */
+  .stat-pill {
+    @apply inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium;
+  }
+
+  .stat-pill-muted {
+    @apply stat-pill bg-secondary/70 text-muted-foreground;
+  }
+
+  .stat-pill-active {
+    @apply stat-pill bg-[hsl(var(--navy))] text-white;
+  }
+
+  .stat-pill-accent {
+    @apply stat-pill bg-primary/15 text-primary;
+  }
+
+  /* Boutons */
   .btn-glow {
-    @apply relative overflow-hidden transition-all duration-300 ease-out hover:shadow-lg hover:shadow-primary/25 active:scale-[0.98];
+    @apply relative overflow-hidden rounded-full transition-all duration-300 ease-out hover:shadow-lg hover:shadow-primary/25 active:scale-[0.98];
   }
 
+  .btn-navy {
+    @apply inline-flex items-center justify-center rounded-full bg-[hsl(var(--navy))] px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-navy/20 transition-all hover:bg-[hsl(var(--navy))]/90 hover:shadow-lg;
+  }
+
+  .btn-primary-pill {
+    @apply inline-flex items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-primary/20 transition-all hover:bg-primary/90;
+  }
+
+  /* Inputs Crextio */
   .input-modern {
-    @apply flex h-11 w-full rounded-2xl border border-input/80 bg-white/80 px-4 py-2 text-sm shadow-sm backdrop-blur-sm transition-all duration-200 placeholder:text-muted-foreground focus:border-primary/50 focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply flex h-11 w-full rounded-full border border-input bg-secondary/40 px-5 py-2 text-sm transition-all duration-200 placeholder:text-muted-foreground focus:border-primary/40 focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-50;
   }
 
-  .stagger-1 {
-    animation-delay: 50ms;
-  }
-  .stagger-2 {
-    animation-delay: 100ms;
-  }
-  .stagger-3 {
-    animation-delay: 150ms;
-  }
-  .stagger-4 {
-    animation-delay: 200ms;
-  }
-  .stagger-5 {
-    animation-delay: 250ms;
-  }
-  .stagger-6 {
-    animation-delay: 300ms;
+  /* Barres de progression */
+  .progress-bar-track {
+    @apply overflow-hidden rounded-full bg-secondary;
   }
 
   .progress-bar-fill {
-    @apply transition-all duration-700 ease-out;
+    @apply rounded-full bg-primary transition-all duration-700 ease-out;
   }
+
+  .progress-bar-vertical {
+    @apply w-full rounded-full bg-primary transition-all duration-700 ease-out;
+  }
+
+  /* Accordéon menu sous profil */
+  .crextio-menu-item {
+    @apply flex w-full items-center justify-between rounded-2xl px-4 py-3.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary/60;
+  }
+
+  /* Page titre Crextio */
+  .page-title {
+    @apply text-3xl font-extrabold tracking-tight text-[hsl(var(--navy))] md:text-4xl;
+  }
+
+  .page-title-light {
+    @apply font-light text-muted-foreground;
+  }
+
+  .break-anywhere {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .stagger-1 { animation-delay: 50ms; }
+  .stagger-2 { animation-delay: 100ms; }
+  .stagger-3 { animation-delay: 150ms; }
+  .stagger-4 { animation-delay: 200ms; }
+  .stagger-5 { animation-delay: 250ms; }
+  .stagger-6 { animation-delay: 300ms; }
 
   .chat-bubble-in {
     animation: chat-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
@@ -130,12 +189,19 @@
   }
 }
 
-/* Scrollbar moderne */
 @layer utilities {
   .scrollbar-thin::-webkit-scrollbar {
     width: 6px;
+    height: 6px;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb {
     @apply rounded-full bg-border;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 }

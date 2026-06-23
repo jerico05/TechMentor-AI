@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from functools import lru_cache
 from typing import Any
 
@@ -69,10 +70,15 @@ def search_similar(client: QdrantClient, vector: list[float], limit: int = 4) ->
     ]
 
 
+async def search_similar_async(vector: list[float], limit: int = 4) -> list[dict[str, Any]]:
+    client = get_qdrant_client()
+    return await asyncio.to_thread(search_similar, client, vector, limit)
+
+
 async def check_qdrant_health() -> str:
     try:
         client = get_qdrant_client()
-        client.get_collections()
+        await asyncio.to_thread(client.get_collections)
         return "ok"
     except Exception as exc:  # noqa: BLE001
         logger.warning("qdrant_health_failed", error=str(exc))

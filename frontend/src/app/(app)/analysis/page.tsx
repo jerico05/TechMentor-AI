@@ -4,8 +4,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BarChart3, CheckCircle2, Loader2, XCircle } from "lucide-react";
 import * as React from "react";
 
+import { CareerSelect } from "@/components/careers/career-select";
 import { Button } from "@/components/ui/button";
 import { Motion } from "@/components/ui/motion";
+import { useAppReady } from "@/lib/use-app-ready";
 import { fetchLatestAnalysis, levelLabel, runAnalysis } from "@/services/analysis";
 import { fetchCareers } from "@/services/careers";
 import { fetchMyProfile } from "@/services/profile";
@@ -13,11 +15,22 @@ import { isApiError } from "@/services/api";
 
 export default function AnalysisPage() {
   const queryClient = useQueryClient();
-  const { data: careers } = useQuery({ queryKey: ["careers"], queryFn: fetchCareers, staleTime: 60_000 });
-  const { data: profile } = useQuery({ queryKey: ["profile", "me"], queryFn: fetchMyProfile });
+  const appReady = useAppReady();
+  const { data: careers, isLoading: careersLoading } = useQuery({
+    queryKey: ["careers"],
+    queryFn: fetchCareers,
+    staleTime: 10 * 60 * 1000,
+    enabled: appReady,
+  });
+  const { data: profile } = useQuery({
+    queryKey: ["profile", "me"],
+    queryFn: fetchMyProfile,
+    enabled: appReady,
+  });
   const { data: analysis, isLoading } = useQuery({
     queryKey: ["analysis", "me"],
     queryFn: fetchLatestAnalysis,
+    enabled: appReady,
   });
   const [careerId, setCareerId] = React.useState<number | "">("");
 
@@ -29,7 +42,10 @@ export default function AnalysisPage() {
     mutationFn: () => runAnalysis(typeof careerId === "number" ? careerId : undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["analysis", "me"] });
+      queryClient.invalidateQueries({ queryKey: ["analysis", "history"] });
       queryClient.invalidateQueries({ queryKey: ["profile", "me"] });
+      queryClient.invalidateQueries({ queryKey: ["projects", "recommendations"] });
+      queryClient.invalidateQueries({ queryKey: ["roadmap", "suggestion"] });
     },
   });
 
@@ -43,17 +59,13 @@ export default function AnalysisPage() {
       </Motion>
 
       <Motion animation="scale-in" delay={2} className="glass-card space-y-4 p-6">
-        <label className="text-sm font-medium">Métier cible</label>
-        <select
-          className="input-modern h-11 w-full cursor-pointer"
-          value={careerId}
-          onChange={(e) => setCareerId(e.target.value ? Number(e.target.value) : "")}
-        >
-          <option value="">Sélectionner un métier</option>
-          {careers?.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
+        <label className="text-sm font-medium text-[hsl(var(--navy))]">Métier cible</label>
+        <CareerSelect
+          value={typeof careerId === "number" ? careerId : null}
+          onChange={(id) => setCareerId(id ?? "")}
+          careers={careers ?? []}
+          loading={careersLoading}
+        />
         <Button
           onClick={() => mutation.mutate()}
           disabled={mutation.isPending || !careerId}
@@ -74,9 +86,19 @@ export default function AnalysisPage() {
       ) : result ? (
         <Motion animation="slide-up" delay={3} className="mt-6 space-y-4">
           <div className="glass-card-interactive p-6 text-center">
-            <p className="text-sm text-muted-foreground">Votre score</p>
+            <p className="text-sm text-muted-foreground">Préparation métier (écarts de compétences)</p>
             <p className="text-5xl font-extrabold text-primary">{result.score}<span className="text-2xl">/100</span></p>
-            <p className="mt-2 font-semibold">{levelLabel(result.level)}</p>
+            <p className="mt-4 text-sm text-muted-foreground">Niveau d&apos;expérience</p>
+            <p className="text-xl font-bold text-[hsl(var(--navy))]">{levelLabel(result.level)}</p>
+            {result.projects_completed !== undefined && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {result.projects_completed} projet{result.projects_completed !== 1 ? "s" : ""} portfolio validé
+                {result.projects_completed !== 1 ? "s" : ""}
+              </p>
+            )}
+            {result.level_reason && (
+              <p className="mt-3 text-xs leading-relaxed text-muted-foreground">{result.level_reason}</p>
+            )}
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <SkillList title="Acquises" skills={result.owned_skills} icon={CheckCircle2} variant="owned" />

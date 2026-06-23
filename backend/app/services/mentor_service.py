@@ -1,4 +1,4 @@
-"""Mentor IA — contextual chat with persistence."""
+"""Mentor IA - contextual chat with persistence."""
 
 from __future__ import annotations
 
@@ -11,23 +11,31 @@ from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.database.session import AsyncSessionLocal
 from app.models.analysis import Roadmap
 from app.models.chat import ChatMessage, ChatSession
 from app.models.cv_file import CVFile
 from app.models.github_analysis import GitHubAnalysis
 from app.models.user import User
-from app.rag.retriever import retrieve_context
+from app.rag.retriever import retrieve_context_async
 from app.repositories.student_profile_repository import StudentProfileRepository
 from app.schemas.mentor import MentorChatRequest, MentorChatResponse
 from app.services.analysis_service import AnalysisService
-from app.services.rodium_client import get_rodium_client
+from app.services.llm_client import get_llm_client
+from app.utils.user_level import level_label_fr, normalize_level
+from app.utils.text_sanitize import sanitize_mentor_reply
 
 logger = get_logger(__name__)
 
 SYSTEM_PROMPT = """Tu es TechMentor, un mentor IA bienveillant et expert pour étudiants en informatique.
 Tu aides sur : orientation carrière, compétences techniques, projets, stages, roadmap d'apprentissage.
 Réponds en français, de façon claire et structurée. Sois concret avec des actions recommandées.
-Si tu manques d'informations sur l'étudiant, pose une question ciblée."""
+Si tu manques d'informations sur l'étudiant, pose une question ciblée.
+
+Format de réponse : texte simple uniquement.
+- N'utilise JAMAIS de markdown : pas de *, **, #, ##, ###, backticks, ni titres markdown.
+- Pour structurer, utilise des numéros (1. 2. 3.) et des paragraphes courts.
+- Pas de listes à puces avec des symboles *, utilise des phrases ou des numéros."""
 
 
 class MentorService:
@@ -37,89 +45,115 @@ class MentorService:
         self.analysis = AnalysisService(db)
 
     async def chat(self, user: User, payload: MentorChatRequest) -> MentorChatResponse:
-        profile = await self.profile_repo.get_for_user(user.id)
-        context = await self._build_context(user, profile)
-        rag_context = retrieve_context(payload.message)
-        if rag_context:
-            context = f"{context}\n\n{rag_context}"
+        try:
+            profile = await self.profile_repo.get_for_user(user.id)
+            context = await self._build_context(user, profile)
+            rag_context = await retrieve_context_async(payload.message)
+            if rag_context:
+                context = f"{context}\n\n{rag_context}"
 
-        session = await self._get_or_create_session(user.id, payload.session_id)
-        history_msgs: list[dict[str, str]] = []
-        if payload.history:
-            history_msgs = [{"role": m.role, "content": m.content} for m in payload.history[-10:]]
-        elif payload.session_id:
-            prior = await self.get_session_messages(user.id, session.id)
-            history_msgs = [{"role": m.role, "content": m.content} for m in prior[-10:]]
+            session = await self._get_or_create_session(user.id, payload.session_id)
+            history_msgs: list[dict[str, str]] = []
+            if payload.history:
+                history_msgs = [{"role": m.role, "content": m.content} for m in payload.history[-10:]]
+            elif payload.session_id:
+                prior = await self.get_session_messages(user.id, session.id)
+                history_msgs = [{"role": m.role, "content": m.content} for m in prior[-10:]]
 
-        messages = [
-            {"role": "system", "content": f"{SYSTEM_PROMPT}\n\n{context}"},
-            *history_msgs,
-            {"role": "user", "content": payload.message},
-        ]
+            messages = [
+                {"role": "system", "content": f"{SYSTEM_PROMPT}\n\n{context}"},
+                *history_msgs,
+                {"role": "user", "content": payload.message},
+            ]
 
-        client = get_rodium_client()
-        completion = await client.chat.completions.create(
-            model=settings.rodium_default_model,
-            messages=messages,
-            temperature=0.7,
-            max_tokens=1024,
-        )
-        reply = (completion.choices[0].message.content or "Je n'ai pas pu générer de réponse.").strip()
+            client = get_llm_client()
+            completion = await client.chat.completions.create(
+                model=settings.mistral_default_model,
+                messages=messages,
+                temperature=0.7,
+                max_tokens=1024,
+            )
+            reply = sanitize_mentor_reply(
+                (completion.choices[0].message.content or "Je n'ai pas pu générer de réponse.").strip()
+            )
 
-        self.db.add(ChatMessage(session_id=session.id, role="user", content=payload.message))
-        self.db.add(ChatMessage(session_id=session.id, role="assistant", content=reply))
-        await self.db.commit()
+            self.db.add(ChatMessage(session_id=session.id, role="user", content=payload.message))
+            self.db.add(ChatMessage(session_id=session.id, role="assistant", content=reply))
+            await self.db.commit()
 
-        return MentorChatResponse(
-            reply=reply,
-            model=settings.rodium_default_model,
-            session_id=session.id,
-        )
+            return MentorChatResponse(
+                reply=reply,
+                model=settings.mistral_default_model,
+                session_id=session.id,
+            )
+        except Exception as exc:
+            await self.db.rollback()
+            logger.exception("mentor.chat.failed", user_id=user.id, error=str(exc))
+            from app.core.exceptions import AppError
+
+            raise AppError(
+                "Le mentor est temporairement indisponible. Réessayez dans un instant.",
+                details=None,
+            ) from exc
 
     async def stream_chat(self, user: User, payload: MentorChatRequest) -> AsyncIterator[str]:
-        profile = await self.profile_repo.get_for_user(user.id)
-        context = await self._build_context(user, profile)
-        rag_context = retrieve_context(payload.message)
-        if rag_context:
-            context = f"{context}\n\n{rag_context}"
+        """Stream tokens via SSE. Uses dedicated DB sessions (request session closes before stream ends)."""
+        user_id = user.id
+        try:
+            async with AsyncSessionLocal() as db:
+                mentor = MentorService(db)
+                profile = await mentor.profile_repo.get_for_user(user_id)
+                context = await mentor._build_context(user, profile)
+                rag_context = await retrieve_context_async(payload.message)
+                if rag_context:
+                    context = f"{context}\n\n{rag_context}"
 
-        session = await self._get_or_create_session(user.id, payload.session_id)
-        history_msgs: list[dict[str, str]] = []
-        if payload.history:
-            history_msgs = [{"role": m.role, "content": m.content} for m in payload.history[-10:]]
-        elif payload.session_id:
-            prior = await self.get_session_messages(user.id, session.id)
-            history_msgs = [{"role": m.role, "content": m.content} for m in prior[-10:]]
+                session = await mentor._get_or_create_session(user_id, payload.session_id)
+                history_msgs: list[dict[str, str]] = []
+                if payload.history:
+                    history_msgs = [{"role": m.role, "content": m.content} for m in payload.history[-10:]]
+                elif payload.session_id:
+                    prior = await mentor.get_session_messages(user_id, session.id)
+                    history_msgs = [{"role": m.role, "content": m.content} for m in prior[-10:]]
 
-        messages = [
-            {"role": "system", "content": f"{SYSTEM_PROMPT}\n\n{context}"},
-            *history_msgs,
-            {"role": "user", "content": payload.message},
-        ]
+                messages = [
+                    {"role": "system", "content": f"{SYSTEM_PROMPT}\n\n{context}"},
+                    *history_msgs,
+                    {"role": "user", "content": payload.message},
+                ]
 
-        self.db.add(ChatMessage(session_id=session.id, role="user", content=payload.message))
-        await self.db.flush()
+                db.add(ChatMessage(session_id=session.id, role="user", content=payload.message))
+                await db.commit()
+                session_id = session.id
 
-        client = get_rodium_client()
-        stream = await client.chat.completions.create(
-            model=settings.rodium_default_model,
-            messages=messages,
-            temperature=0.7,
-            max_tokens=1024,
-            stream=True,
-        )
+            client = get_llm_client()
+            stream = await client.chat.completions.create(
+                model=settings.mistral_default_model,
+                messages=messages,
+                temperature=0.7,
+                max_tokens=1024,
+                stream=True,
+            )
 
-        full_reply = ""
-        async for chunk in stream:
-            delta = chunk.choices[0].delta.content or ""
-            if delta:
-                full_reply += delta
-                yield f"data: {json.dumps({'token': delta})}\n\n"
+            full_reply = ""
+            async for chunk in stream:
+                if not chunk.choices:
+                    continue
+                delta = chunk.choices[0].delta.content or ""
+                if delta:
+                    full_reply += delta
+                    yield f"data: {json.dumps({'token': delta})}\n\n"
 
-        reply = full_reply.strip() or "Je n'ai pas pu générer de réponse."
-        self.db.add(ChatMessage(session_id=session.id, role="assistant", content=reply))
-        await self.db.commit()
-        yield f"data: {json.dumps({'done': True, 'session_id': session.id, 'reply': reply})}\n\n"
+            reply = sanitize_mentor_reply(full_reply.strip() or "Je n'ai pas pu générer de réponse.")
+
+            async with AsyncSessionLocal() as db:
+                db.add(ChatMessage(session_id=session_id, role="assistant", content=reply))
+                await db.commit()
+
+            yield f"data: {json.dumps({'done': True, 'session_id': session_id, 'reply': reply})}\n\n"
+        except Exception as exc:
+            logger.exception("mentor.stream.failed", user_id=user_id, error=str(exc))
+            yield f"data: {json.dumps({'error': 'Le mentor est temporairement indisponible. Réessayez dans un instant.'})}\n\n"
 
     async def list_sessions(self, user_id: int) -> list[ChatSession]:
         result = await self.db.execute(
@@ -171,39 +205,51 @@ class MentorService:
             if profile.bio:
                 lines.append(f"Bio : {profile.bio}")
 
-        cv = await self.db.execute(
-            select(CVFile).where(CVFile.user_id == user.id).order_by(CVFile.created_at.desc()).limit(1)
+        user_id = user.id
+
+        cv_result = await self.db.execute(
+            select(CVFile)
+            .where(CVFile.user_id == user_id)
+            .order_by(CVFile.created_at.desc())
+            .limit(1)
         )
-        cv_row = cv.scalar_one_or_none()
+        cv_row = cv_result.scalar_one_or_none()
+
+        gh_result = await self.db.execute(
+            select(GitHubAnalysis).where(GitHubAnalysis.user_id == user_id)
+        )
+        gh_row = gh_result.scalar_one_or_none()
+
+        roadmap_result = await self.db.execute(
+            select(Roadmap)
+            .where(Roadmap.user_id == user_id, Roadmap.status == "active")
+            .order_by(Roadmap.created_at.desc())
+            .limit(1)
+        )
+        roadmap = roadmap_result.scalar_one_or_none()
+
+        latest = await self.analysis.get_latest(user_id)
+        skills = await self.analysis.get_user_skills(user_id)
+
         if cv_row and cv_row.extracted_text:
             lines.append(f"CV (extrait) : {cv_row.extracted_text[:800]}...")
 
-        gh = await self.db.execute(select(GitHubAnalysis).where(GitHubAnalysis.user_id == user.id))
-        gh_row = gh.scalar_one_or_none()
         if gh_row:
             langs = ", ".join((gh_row.languages or {}).keys())
             lines.append(f"GitHub @{gh_row.username} : {gh_row.repo_count} repos, langages: {langs}")
 
-        latest = await self.analysis.get_latest(user.id)
         if latest:
-            lines.append(f"Score compétences : {latest.score}/100 ({latest.level})")
+            exp_level = level_label_fr(normalize_level(latest.level))
+            lines.append(f"Niveau d'expérience : {exp_level}")
+            lines.append(f"Score préparation métier : {latest.score}/100")
             lines.append(f"Compétences : {', '.join(latest.owned_skills)}")
             lines.append(f"Lacunes : {', '.join(latest.missing_skills)}")
 
-        roadmap = (
-            await self.db.execute(
-                select(Roadmap)
-                .where(Roadmap.user_id == user.id, Roadmap.status == "active")
-                .order_by(Roadmap.created_at.desc())
-                .limit(1)
-            )
-        ).scalar_one_or_none()
         if roadmap and roadmap.content:
             summary = roadmap.content.get("summary", "")
             if summary:
                 lines.append(f"Roadmap active : {summary[:400]}")
 
-        skills = await self.analysis.get_user_skills(user.id)
         if skills:
             lines.append(f"Toutes compétences détectées : {', '.join(skills)}")
 

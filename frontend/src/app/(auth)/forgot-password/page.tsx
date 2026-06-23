@@ -43,8 +43,8 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-[85vh] max-w-md flex-col justify-center px-4 py-8">
-      <div className="glass-card animate-scale-in p-8 opacity-0">
+    <main className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-8">
+      <div className="crextio-shell w-full max-w-md animate-scale-in p-6 opacity-0 sm:p-8">
         <div className="mb-6 text-center">
           <Mail className="mx-auto mb-3 h-10 w-10 text-primary" />
           <h1 className="text-2xl font-extrabold text-[hsl(var(--navy))]">Mot de passe oublié</h1>
@@ -73,7 +73,7 @@ export default function ForgotPasswordPage() {
               {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button type="submit" className="w-full rounded-2xl" disabled={loading || !firebaseReady}>
+            <Button type="submit" variant="navy" className="w-full" disabled={loading || !firebaseReady}>
               {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Envoyer le lien
             </Button>

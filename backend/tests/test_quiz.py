@@ -36,13 +36,13 @@ async def test_quiz_submit_reassessment(client: AsyncClient, auth_headers: dict[
     mock_roadmap.id = 42
 
     with patch(
-        "app.services.quiz_service.get_rodium_client",
+        "app.services.quiz_service.get_llm_client",
         return_value=_mock_llm(SAMPLE_QUIZ_JSON),
     ), patch(
-        "app.services.roadmap_service.retrieve_for_roadmap",
-        return_value="",
+        "app.services.roadmap_service.retrieve_for_roadmap_async",
+        new=AsyncMock(return_value=""),
     ), patch(
-        "app.services.roadmap_service.get_rodium_client",
+        "app.services.roadmap_service.get_llm_client",
         return_value=_mock_llm('{"months": [], "summary": "ok"}'),
     ):
         gen = await client.post("/api/v1/quiz/generate", headers=auth_headers)

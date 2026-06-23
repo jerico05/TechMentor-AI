@@ -6,6 +6,7 @@ Run locally with:
 
 from __future__ import annotations
 
+import asyncio
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -19,6 +20,7 @@ from app.api.v1 import api_router
 from app.core.config import settings
 from app.core.exceptions import register_exception_handlers
 from app.core.logging import configure_logging, get_logger
+from app.core.firebase import warmup_firebase
 from app.database.session import AsyncSessionLocal
 from app.data.seed_careers import seed_career_catalog
 from app.rag.ingest import ingest_knowledge_base
@@ -40,16 +42,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     _ = settings.upload_path
     async with AsyncSessionLocal() as db:
         await seed_career_catalog(db)
-    ingest_knowledge_base()
+    await asyncio.to_thread(warmup_firebase)
+    if os.environ.get("SKIP_RAG_INGEST") != "1":
+        await asyncio.to_thread(ingest_knowledge_base)
     yield
     logger.info("app.stopping")
 
 
 def create_app() -> FastAPI:
-    """Application factory — wires middlewares, routers, handlers."""
+    """Application factory - wires middlewares, routers, handlers."""
     app = FastAPI(
         title=settings.app_name,
-        description="TechMentor AI — intelligent academic & career mentor for CS students.",
+        description="TechMentor AI - intelligent academic & career mentor for CS students.",
         version="0.1.0",
         docs_url="/docs" if not settings.is_production else None,
         redoc_url="/redoc" if not settings.is_production else None,

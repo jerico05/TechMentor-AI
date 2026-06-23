@@ -1,4 +1,4 @@
-# Dev image — hot reload, Firebase env via docker-compose env_file.
+# Dev image - hot reload, Firebase env via docker-compose env_file.
 FROM node:20-alpine
 
 WORKDIR /app

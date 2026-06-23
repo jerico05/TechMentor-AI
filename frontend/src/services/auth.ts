@@ -12,7 +12,7 @@ import {
   type User as FirebaseUser,
 } from "firebase/auth";
 
-import { firebaseAuth, getFirebaseIdToken } from "@/lib/firebase";
+import { getFirebaseAuth, getFirebaseIdToken } from "@/lib/firebase";
 import { describeError } from "@/lib/constants";
 import { api, isApiError } from "@/services/api";
 import type { UserPublic } from "@/types";
@@ -57,8 +57,8 @@ export async function registerWithEmail(
   firstname: string,
   lastname: string,
 ): Promise<{ firebaseUser: FirebaseUser; user: UserPublic }> {
-  const credential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
-  const user = await syncBackendSession({ firstname, lastname });
+  const credential = await createUserWithEmailAndPassword(getFirebaseAuth(), email, password);
+  const user = await syncBackendSession({ firstname, lastname }, credential.user);
   return { firebaseUser: credential.user, user };
 }
 
@@ -66,15 +66,15 @@ export async function loginWithEmail(
   email: string,
   password: string,
 ): Promise<{ firebaseUser: FirebaseUser; user: UserPublic }> {
-  const credential = await signInWithEmailAndPassword(firebaseAuth, email, password);
-  const user = await syncBackendSession();
+  const credential = await signInWithEmailAndPassword(getFirebaseAuth(), email, password);
+  const user = await syncBackendSession(undefined, credential.user);
   return { firebaseUser: credential.user, user };
 }
 
 export async function loginWithGoogle(): Promise<{ firebaseUser: FirebaseUser; user: UserPublic }> {
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
-  const credential = await signInWithPopup(firebaseAuth, provider);
+  const credential = await signInWithPopup(getFirebaseAuth(), provider);
   const user = await syncBackendSession(undefined, credential.user);
   return { firebaseUser: credential.user, user };
 }
@@ -83,18 +83,18 @@ export async function loginWithGithub(): Promise<{ firebaseUser: FirebaseUser; u
   const provider = new GithubAuthProvider();
   provider.addScope("user:email");
   provider.addScope("read:user");
-  const credential = await signInWithPopup(firebaseAuth, provider);
+  const credential = await signInWithPopup(getFirebaseAuth(), provider);
   await credential.user.reload();
   const user = await syncBackendSession(undefined, credential.user);
   return { firebaseUser: credential.user, user };
 }
 
 export async function requestPasswordReset(email: string): Promise<void> {
-  await sendPasswordResetEmail(firebaseAuth, email);
+  await sendPasswordResetEmail(getFirebaseAuth(), email);
 }
 
 export async function logout(): Promise<void> {
-  await signOut(firebaseAuth);
+  await signOut(getFirebaseAuth());
 }
 
 /** Map Firebase error codes to French messages. */
@@ -136,6 +136,10 @@ export function formatAuthError(err: unknown, fallback: string): string {
   }
 
   if (isApiError(err)) {
+    const apiMessage = err.error.message?.trim();
+    if (apiMessage && err.error.code === "unauthorized" && apiMessage !== "unauthorized") {
+      return apiMessage;
+    }
     return describeError(err.error.code, err.error.message);
   }
 
@@ -143,12 +147,16 @@ export function formatAuthError(err: unknown, fallback: string): string {
     return describeError(e.error.code, e.error.message);
   }
 
+  if (e.message?.includes("timeout") || e.code === "ECONNABORTED") {
+    return "Le serveur met trop de temps à répondre. Vérifiez que le backend tourne (port 8000).";
+  }
+
   if (e.message?.includes("Network Error") || e.status === 0) {
-    return "Impossible de joindre le backend. Lancez-le sur http://localhost:8001";
+    return "Impossible de joindre le backend. Lancez-le sur http://localhost:8000";
   }
 
   if (e.status === 404) {
-    return "Endpoint API introuvable — vérifiez que le backend TechMentor tourne sur le port 8001 (pas une autre app sur 8000).";
+    return "Endpoint API introuvable. Vérifiez que le backend TechMentor tourne sur le port 8000.";
   }
 
   if (e.message) {

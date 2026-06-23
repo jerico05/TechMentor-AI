@@ -1,4 +1,4 @@
-"""Auth service — sync Firebase-authenticated users to the local database.
+"""Auth service - sync Firebase-authenticated users to the local database.
 
 Login, register, OAuth and password reset are handled by Firebase Auth on the
 client. The backend verifies ID tokens and maintains a local `User` record for
@@ -10,7 +10,7 @@ from __future__ import annotations
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ConflictError, UnauthorizedError
-from app.core.firebase import enrich_claims_email, map_firebase_provider
+from app.core.firebase import map_firebase_provider
 from app.core.logging import get_logger
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth import SessionSync, UserPublic
@@ -31,7 +31,6 @@ class AuthService:
         profile: SessionSync | None = None,
     ) -> UserPublic:
         """Create or update a local user from verified Firebase claims."""
-        firebase_claims = enrich_claims_email(firebase_claims)
         uid = firebase_claims.get("uid")
         if not uid:
             raise UnauthorizedError("Token Firebase sans identifiant utilisateur.")

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 
-# Tests skip slow RAG ingestion at startup.
+# Tests skip slow RAG ingestion at startup (see app.main lifespan).
 os.environ.setdefault("SKIP_RAG_INGEST", "1")
 
 import asyncio

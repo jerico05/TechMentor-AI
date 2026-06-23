@@ -1,30 +1,14 @@
 import { API_BASE_URL } from "@/lib/constants";
 import { getFirebaseIdToken } from "@/lib/firebase";
-import { api } from "@/services/api";
+import { api, isApiError } from "@/services/api";
+import type {
+  ChatMessage,
+  ChatMessageRecord,
+  ChatSession,
+  MentorChatResponse,
+} from "@/types";
 
-export interface ChatMessage {
-  role: "user" | "assistant";
-  content: string;
-}
-
-export interface MentorChatResponse {
-  reply: string;
-  model: string;
-  session_id?: number | null;
-}
-
-export interface ChatSession {
-  id: number;
-  title: string;
-  created_at: string;
-}
-
-export interface ChatMessageRecord {
-  id: number;
-  role: string;
-  content: string;
-  created_at: string;
-}
+export type { ChatMessage, ChatMessageRecord, ChatSession, MentorChatResponse } from "@/types";
 
 export async function sendMentorMessage(
   message: string,
@@ -43,6 +27,17 @@ export async function sendMentorMessage(
   return data;
 }
 
+async function parseStreamError(res: Response): Promise<string> {
+  try {
+    const text = await res.text();
+    const payload = JSON.parse(text) as { error?: { message?: string } };
+    if (payload.error?.message) return payload.error.message;
+    return text.slice(0, 200) || `Erreur serveur (${res.status}).`;
+  } catch {
+    return `Erreur serveur (${res.status}).`;
+  }
+}
+
 export async function streamMentorMessage(
   message: string,
   history: ChatMessage[],
@@ -54,6 +49,7 @@ export async function streamMentorMessage(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      Accept: "text/event-stream",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify({
@@ -63,7 +59,7 @@ export async function streamMentorMessage(
     }),
   });
   if (!res.ok || !res.body) {
-    throw new Error("Erreur de streaming mentor.");
+    throw new Error(await parseStreamError(res));
   }
 
   const reader = res.body.getReader();
@@ -85,7 +81,9 @@ export async function streamMentorMessage(
         done?: boolean;
         session_id?: number;
         reply?: string;
+        error?: string;
       };
+      if (payload.error) throw new Error(payload.error);
       if (payload.token) onToken(payload.token);
       if (payload.done) {
         finalSessionId = payload.session_id ?? finalSessionId;
@@ -93,7 +91,27 @@ export async function streamMentorMessage(
       }
     }
   }
+
+  if (!finalReply.trim()) {
+    throw new Error("Réponse vide du mentor.");
+  }
+
   return { sessionId: finalSessionId, reply: finalReply };
+}
+
+/** Try SSE stream first; fall back to standard POST if streaming fails. */
+export async function sendMentorMessageWithFallback(
+  message: string,
+  history: ChatMessage[],
+  sessionId: number | null | undefined,
+  onToken?: (token: string) => void,
+): Promise<{ sessionId: number | null; reply: string }> {
+  try {
+    return await streamMentorMessage(message, history, sessionId, onToken ?? (() => undefined));
+  } catch {
+    const result = await sendMentorMessage(message, history, sessionId);
+    return { sessionId: result.session_id ?? sessionId ?? null, reply: result.reply };
+  }
 }
 
 export async function fetchSessions(): Promise<ChatSession[]> {
@@ -105,3 +123,5 @@ export async function fetchSessionMessages(sessionId: number): Promise<ChatMessa
   const { data } = await api.get<ChatMessageRecord[]>(`/mentor/sessions/${sessionId}/messages`);
   return data;
 }
+
+export { isApiError };

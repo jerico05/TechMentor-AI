@@ -2,22 +2,16 @@
 
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import NotFoundError, ValidationError
 from app.models.analysis import AnalysisHistory
 from app.models.skill import CareerPath, CareerPathSkill, Skill, UserSkill
+from app.models.user_project import UserProjectCompletion
 from app.repositories.student_profile_repository import StudentProfileRepository
-
-
-def score_to_level(score: int) -> str:
-    if score < 40:
-        return "debutant"
-    if score < 70:
-        return "intermediaire"
-    return "avance"
+from app.utils.user_level import compute_experience_level, normalize_level
 
 
 class AnalysisService:
@@ -60,7 +54,7 @@ class AnalysisService:
         total_weight = sum(s.weight for s in required.values()) or 1
         earned = sum(required[n].weight for n in owned)
         score = min(100, round(earned / total_weight * 100))
-        level = score_to_level(score)
+        level = await self._compute_level_for_user(user_id)
 
         if profile:
             await self.profile_repo.upsert_for_user(user_id, {"career_path_id": cp_id})
@@ -105,3 +99,44 @@ class AnalysisService:
             )
         ).all()
         return [r[0] for r in rows]
+
+    async def count_completed_projects(self, user_id: int) -> int:
+        result = await self.db.scalar(
+            select(func.count())
+            .select_from(UserProjectCompletion)
+            .where(UserProjectCompletion.user_id == user_id)
+        )
+        return int(result or 0)
+
+    async def _experience_context(self, user_id: int) -> dict:
+        profile = await self.profile_repo.get_for_user(user_id)
+        projects_completed = await self.count_completed_projects(user_id)
+        return {
+            "projects_completed": projects_completed,
+            "academic_level": profile.academic_level if profile else None,
+        }
+
+    async def _compute_level_for_user(self, user_id: int) -> str:
+        projects_completed = await self.count_completed_projects(user_id)
+        return compute_experience_level(projects_completed=projects_completed)
+
+    async def refresh_experience_level(self, user_id: int) -> AnalysisHistory | None:
+        """Recompute level after project completion without full skill-gap rerun."""
+        latest = await self.get_latest(user_id)
+        if latest is None:
+            return None
+        new_level = await self._compute_level_for_user(user_id)
+        if normalize_level(new_level) == normalize_level(latest.level):
+            return latest
+        record = AnalysisHistory(
+            user_id=user_id,
+            career_path_id=latest.career_path_id,
+            score=latest.score,
+            level=new_level,
+            owned_skills=list(latest.owned_skills),
+            missing_skills=list(latest.missing_skills),
+        )
+        self.db.add(record)
+        await self.db.commit()
+        await self.db.refresh(record)
+        return record

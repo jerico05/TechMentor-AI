@@ -1,13 +1,7 @@
 import { api } from "@/services/api";
+import type { AnalysisResult } from "@/types";
 
-export interface AnalysisResult {
-  id: number;
-  career_path_id: number;
-  score: number;
-  level: string;
-  owned_skills: string[];
-  missing_skills: string[];
-}
+export type { AnalysisResult } from "@/types";
 
 export async function runAnalysis(careerPathId?: number): Promise<AnalysisResult> {
   const { data } = await api.post<AnalysisResult>("/analysis/run", {
@@ -26,11 +20,14 @@ export async function fetchAnalysisHistory(): Promise<AnalysisResult[]> {
   return data;
 }
 
+const LEVEL_LABELS: Record<string, string> = {
+  entry: "Entry level",
+  intermediaire: "Intermédiaire",
+  senior: "Senior",
+  debutant: "Entry level",
+  avance: "Senior",
+};
+
 export function levelLabel(level: string): string {
-  const map: Record<string, string> = {
-    debutant: "Débutant",
-    intermediaire: "Intermédiaire",
-    avance: "Avancé",
-  };
-  return map[level] ?? level;
+  return LEVEL_LABELS[level] ?? level;
 }

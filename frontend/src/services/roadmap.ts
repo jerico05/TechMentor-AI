@@ -1,28 +1,24 @@
 import { api } from "@/services/api";
+import type { Roadmap, RoadmapContent, RoadmapDurationMonths, RoadmapMonth, RoadmapSuggestion } from "@/types";
 
-export interface RoadmapMonth {
-  month: number;
-  title: string;
-  skills: string[];
-  actions: string[];
+export type { Roadmap, RoadmapContent, RoadmapDurationMonths, RoadmapMonth, RoadmapSuggestion } from "@/types";
+
+export async function fetchRoadmapSuggestion(): Promise<RoadmapSuggestion> {
+  const { data } = await api.get<RoadmapSuggestion>("/roadmaps/suggestion");
+  return data;
 }
 
-export interface RoadmapContent {
-  months: RoadmapMonth[];
-  summary?: string;
-}
-
-export interface Roadmap {
-  id: number;
-  career_path_id: number;
-  content: RoadmapContent;
-  status: string;
-}
-
-export async function generateRoadmap(careerPathId?: number): Promise<Roadmap> {
-  const { data } = await api.post<Roadmap>("/roadmaps/generate", {
-    career_path_id: careerPathId ?? null,
-  }, { timeout: 90_000 });
+export async function generateRoadmap(
+  options?: { careerPathId?: number; durationMonths?: RoadmapDurationMonths },
+): Promise<Roadmap> {
+  const { data } = await api.post<Roadmap>(
+    "/roadmaps/generate",
+    {
+      career_path_id: options?.careerPathId ?? null,
+      duration_months: options?.durationMonths ?? null,
+    },
+    { timeout: 120_000 },
+  );
   return data;
 }
 

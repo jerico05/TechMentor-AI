@@ -41,7 +41,7 @@ export function Motion({
   const Component = Tag as React.ElementType;
   return (
     <Component
-      className={cn("opacity-0", animClass[animation], delay && delayClass[delay], className)}
+      className={cn(animClass[animation], delay && delayClass[delay], className)}
     >
       {children}
     </Component>

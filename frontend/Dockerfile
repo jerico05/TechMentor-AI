@@ -1,4 +1,4 @@
-# TechMentor AI — Frontend image (Next.js standalone output).
+# TechMentor AI - Frontend image (Next.js standalone output).
 # Multi-stage: deps -> build -> lean runtime.
 
 # ---------- Deps ----------

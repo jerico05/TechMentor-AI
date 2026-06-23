@@ -1,4 +1,4 @@
-"""Skills & career paths (Modules 6–7)."""
+"""Skills & career paths (Modules 6-7)."""
 
 from __future__ import annotations
 

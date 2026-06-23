@@ -1,7 +1,7 @@
-# TechMentor AI — Backend
+# TechMentor AI - Backend
 
 FastAPI application exposing the TechMentor AI API. Async SQLAlchemy 2, Alembic
-migrations, Pydantic v2, Celery workers, LangChain/RodiumAI.
+migrations, Pydantic v2, Celery workers, LangChain, Mistral + Gemini.
 
 ## Layout
 
@@ -30,12 +30,12 @@ python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
-cp .env.example .env               # then edit secrets (SECRET_KEY, RODIUM_API_KEY)
+cp .env.example .env               # then edit secrets (SECRET_KEY, MISTRAL_API_KEY, GEMINI_API_KEY)
 
 # Migrations (use python -m if `alembic` is not on PATH)
 python -m alembic upgrade head
 
-# Port 8001 — évite le conflit si une autre app (ex. AgriInsight) utilise le 8000
+# Port 8001 - évite le conflit si une autre app (ex. AgriInsight) utilise le 8000
 python -m uvicorn app.main:app --reload --port 8001
 ```
 
@@ -64,7 +64,7 @@ This backend scaffold ships:
 - ✅ Password hashing (bcrypt) + JWT helpers (access / refresh / reset)
 - ✅ Smoke tests (health, config, security)
 
-Phases 2–10 will mount additional routers under `app/api/v1/`.
+Phases 2-10 will mount additional routers under `app/api/v1/`.
 
 ## Firebase Auth (Phase 2)
 

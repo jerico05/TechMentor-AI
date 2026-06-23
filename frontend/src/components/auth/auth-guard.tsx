@@ -3,34 +3,31 @@
 import { useRouter } from "next/navigation";
 import * as React from "react";
 
+import { useSessionCookie } from "@/lib/use-session-cookie";
 import { useAuthStore } from "@/store/auth-store";
 
 interface AuthGuardProps {
   children: React.ReactNode;
 }
 
-/** Redirect unauthenticated users to /login. */
+/**
+ * Redirect unauthenticated users to /login after hydration.
+ * Always renders children on first paint (middleware already protects routes).
+ */
 export function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuthStore();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isLoading = useAuthStore((s) => s.isLoading);
+  const hasHydrated = useAuthStore((s) => s._hasHydrated);
+  const sessionActive = useSessionCookie();
 
   React.useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (!hasHydrated) return;
+    const allowed = isAuthenticated || sessionActive;
+    if (!isLoading && !allowed) {
       router.replace("/login");
     }
-  }, [isAuthenticated, isLoading, router]);
-
-  if (isLoading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center text-sm text-muted-foreground">
-        Chargement…
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return null;
-  }
+  }, [hasHydrated, isAuthenticated, isLoading, sessionActive, router]);
 
   return <>{children}</>;
 }

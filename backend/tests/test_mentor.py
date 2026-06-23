@@ -20,8 +20,8 @@ async def test_mentor_chat(client: AsyncClient, auth_headers: dict[str, str]) ->
     mock_client = MagicMock()
     mock_client.chat.completions.create = AsyncMock(return_value=mock_completion)
 
-    with patch("app.services.mentor_service.get_rodium_client", return_value=mock_client), patch(
-        "app.services.mentor_service.retrieve_context", return_value=""
+    with patch("app.services.mentor_service.get_llm_client", return_value=mock_client), patch(
+        "app.services.mentor_service.retrieve_context_async", new=AsyncMock(return_value="")
     ):
         response = await client.post(
             "/api/v1/mentor/chat",
@@ -30,3 +30,31 @@ async def test_mentor_chat(client: AsyncClient, auth_headers: dict[str, str]) ->
         )
     assert response.status_code == 200
     assert "mentor" in response.json()["reply"].lower() or response.json()["reply"]
+
+
+@pytest.mark.asyncio
+async def test_mentor_chat_stream(client: AsyncClient, auth_headers: dict[str, str]) -> None:
+    async def mock_stream():
+        chunk = MagicMock()
+        chunk.choices = [MagicMock(delta=MagicMock(content="Bonjour"))]
+        yield chunk
+        chunk2 = MagicMock()
+        chunk2.choices = [MagicMock(delta=MagicMock(content=" mentor"))]
+        yield chunk2
+
+    mock_client = MagicMock()
+    mock_client.chat.completions.create = AsyncMock(return_value=mock_stream())
+
+    with patch("app.services.mentor_service.get_llm_client", return_value=mock_client), patch(
+        "app.services.mentor_service.retrieve_context_async", new=AsyncMock(return_value="")
+    ):
+        response = await client.post(
+            "/api/v1/mentor/chat/stream",
+            headers=auth_headers,
+            json={"message": "Bonjour", "history": []},
+        )
+
+    assert response.status_code == 200
+    body = response.text
+    assert "data:" in body
+    assert "done" in body

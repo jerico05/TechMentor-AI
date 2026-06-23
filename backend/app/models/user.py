@@ -1,4 +1,4 @@
-"""User model (Module 1 — Authentication)."""
+"""User model (Module 1 - Authentication)."""
 
 from __future__ import annotations
 

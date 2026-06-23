@@ -1,1 +1,1 @@
-"""API package — aggregates v1 routers."""
+"""API package - aggregates v1 routers."""

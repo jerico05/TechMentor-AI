@@ -1,7 +1,7 @@
-# TechMentor AI — stack Docker (dev local)
+# TechMentor AI - stack Docker (dev local)
 #
 # Prérequis :
-#   - backend/.env          (SECRET_KEY, Firebase — voir backend/.env.example)
+#   - backend/.env          (SECRET_KEY, Firebase - voir backend/.env.example)
 #   - backend/firebase-service-account.json
 #   - frontend/.env.local   (NEXT_PUBLIC_FIREBASE_*)
 #
@@ -12,7 +12,7 @@
 #   Frontend  http://localhost:3000
 #   Backend   http://localhost:8000/docs
 #
-# Worker Celery (optionnel, quand implémenté) :
+# Worker Celery :
 #   docker compose --profile worker up --build
 
 name: techmentor
@@ -27,8 +27,9 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-techmentor}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-techmentor}
       POSTGRES_DB: ${POSTGRES_DB:-techmentor}
+    # Port hôte optionnel (évite conflit avec Postgres local sur 5432)
     ports:
-      - "5432:5432"
+      - "15432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -71,42 +72,45 @@ services:
       retries: 5
 
   # ===== FastAPI backend =====
+  # network_mode: host → DNS hôte (évite les timeouts Firebase dans Docker bridge)
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: tm-backend
     restart: unless-stopped
+    network_mode: host
     env_file:
       - ./backend/.env
     environment:
-      # Override Neon/local host → service Docker postgres
       POSTGRES_USER: ${POSTGRES_USER:-techmentor}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-techmentor}
       POSTGRES_DB: ${POSTGRES_DB:-techmentor}
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-techmentor}:${POSTGRES_PASSWORD:-techmentor}@postgres:5432/${POSTGRES_DB:-techmentor}
-      SYNC_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-techmentor}:${POSTGRES_PASSWORD:-techmentor}@postgres:5432/${POSTGRES_DB:-techmentor}
-      REDIS_URL: redis://redis:6379/0
-      CELERY_BROKER_URL: redis://redis:6379/1
-      CELERY_RESULT_BACKEND: redis://redis:6379/2
-      QDRANT_URL: http://qdrant:6333
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: 15432
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-techmentor}:${POSTGRES_PASSWORD:-techmentor}@127.0.0.1:15432/${POSTGRES_DB:-techmentor}
+      SYNC_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-techmentor}:${POSTGRES_PASSWORD:-techmentor}@127.0.0.1:15432/${POSTGRES_DB:-techmentor}
+      REDIS_URL: redis://127.0.0.1:6379/0
+      CELERY_BROKER_URL: redis://127.0.0.1:6379/1
+      CELERY_RESULT_BACKEND: redis://127.0.0.1:6379/2
+      QDRANT_URL: http://127.0.0.1:6333
       FIREBASE_CREDENTIALS_PATH: /app/firebase-service-account.json
       RUN_MIGRATIONS: "1"
-    ports:
-      - "8000:8000"
+      SKIP_RAG_INGEST: "1"
     volumes:
       - ./backend:/app
       - backend_uploads:/app/uploads
+      - ./firebase-service-account.json:/app/firebase-service-account.json:ro
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      qdrant:
+        condition: service_started
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
-  # ===== Celery worker (optionnel — profile worker) =====
+  # ===== Celery worker (profile worker) =====
   worker:
     profiles: ["worker"]
     build:
@@ -127,6 +131,8 @@ services:
       CELERY_RESULT_BACKEND: redis://redis:6379/2
       QDRANT_URL: http://qdrant:6333
       RUN_MIGRATIONS: "0"
+    volumes:
+      - backend_uploads:/app/uploads
     depends_on:
       redis:
         condition: service_healthy
@@ -143,10 +149,13 @@ services:
       dockerfile: Dockerfile.dev
     container_name: tm-frontend
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     env_file:
+      - ./frontend/.env
       - ./frontend/.env.local
     environment:
-      BACKEND_URL: http://backend:8000
+      BACKEND_URL: http://host.docker.internal:8000
       NEXT_PUBLIC_API_BASE_URL: ""
       NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-TechMentor AI}
       WATCHPACK_POLLING: "true"

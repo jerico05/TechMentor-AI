@@ -1,7 +1,7 @@
 """Alembic environment.
 
 Wires the project's metadata so `alembic revision --autogenerate` can diff
-the ORM models. Uses the SYNC url (psycopg v3) — migrations must be synchronous.
+the ORM models. Uses the SYNC url (psycopg v3) - migrations must be synchronous.
 """
 
 from __future__ import annotations

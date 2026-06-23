@@ -4,15 +4,18 @@ from __future__ import annotations
 
 import asyncio
 
-import httpx
 from sqlalchemy import select
 
+from app.core.logging import get_logger
 from app.models.github_analysis import GitHubAnalysis
 from app.models.skill import Skill, UserSkill
 from app.models.student_profile import StudentProfile
+from app.services.github_service import fetch_github_profile
 from app.utils.llm_helpers import extract_skills_from_text
 from app.workers.celery_app import celery_app
 from app.workers.db import get_sync_session
+
+logger = get_logger(__name__)
 
 
 async def _sync_skills(session, user_id: int, text: str) -> None:
@@ -34,29 +37,6 @@ async def _sync_skills(session, user_id: int, text: str) -> None:
         session.add(UserSkill(user_id=user_id, skill_id=skill_id, source="github", confidence=75))
 
 
-async def _fetch_github(username: str) -> tuple[dict, list, dict[str, int], list[str]]:
-    async with httpx.AsyncClient(timeout=20.0) as client:
-        user_resp = await client.get(f"https://api.github.com/users/{username}")
-        user_resp.raise_for_status()
-        user_data = user_resp.json()
-        repos_resp = await client.get(
-            f"https://api.github.com/users/{username}/repos",
-            params={"per_page": 30, "sort": "updated"},
-        )
-        repos_resp.raise_for_status()
-        repos = repos_resp.json()
-
-    languages: dict[str, int] = {}
-    technologies: set[str] = set()
-    for repo in repos:
-        lang = repo.get("language")
-        if lang:
-            languages[lang] = languages.get(lang, 0) + 1
-        for topic in repo.get("topics") or []:
-            technologies.add(topic)
-    return user_data, repos, languages, sorted(technologies)
-
-
 @celery_app.task(name="github.analyze", bind=True, max_retries=2)
 def analyze_github_task(self, user_id: int, username: str, github_url: str | None = None) -> str:
     session = get_sync_session()
@@ -73,7 +53,7 @@ def analyze_github_task(self, user_id: int, username: str, github_url: str | Non
         session.commit()
 
         try:
-            user_data, repos, languages, technologies = asyncio.run(_fetch_github(username))
+            user_data, repos, languages, technologies = asyncio.run(fetch_github_profile(username))
             analysis.repo_count = len(repos)
             analysis.languages = languages
             analysis.technologies = technologies
@@ -88,10 +68,15 @@ def analyze_github_task(self, user_id: int, username: str, github_url: str | Non
                     profile.github_url = github_url
             analysis.status = "completed"
             session.commit()
+            logger.info("github.completed.celery", user_id=user_id, username=username)
             return "completed"
         except Exception as exc:
-            analysis.status = "failed"
-            session.commit()
+            session.rollback()
+            analysis = session.get(GitHubAnalysis, analysis.id)
+            if analysis:
+                analysis.status = "failed"
+                session.commit()
+            logger.exception("github.celery_failed", user_id=user_id, error=str(exc))
             raise self.retry(exc=exc, countdown=10) from exc
     finally:
         session.close()
