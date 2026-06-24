@@ -1,0 +1,18 @@
+# Optionnel : monter firebase-service-account.json si vous preferez un fichier
+# plutot que FIREBASE_CREDENTIALS_JSON dans backend/.env
+#
+# Usage :
+#   docker compose -f docker-compose.prod.yml -f docker-compose.prod.firebase-file.yml up -d
+
+services:
+  backend:
+    environment:
+      FIREBASE_CREDENTIALS_PATH: /app/firebase-service-account.json
+    volumes:
+      - ./backend/firebase-service-account.json:/app/firebase-service-account.json:ro
+
+  worker:
+    environment:
+      FIREBASE_CREDENTIALS_PATH: /app/firebase-service-account.json
+    volumes:
+      - ./backend/firebase-service-account.json:/app/firebase-service-account.json:ro

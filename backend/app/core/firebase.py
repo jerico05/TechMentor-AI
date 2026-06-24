@@ -24,11 +24,15 @@ _app: firebase_admin.App | None = None
 
 
 def _build_credentials() -> credentials.Base:
-    """Load service-account credentials from path or inline JSON."""
-    if settings.firebase_credentials_path:
-        return credentials.Certificate(settings.firebase_credentials_path)
+    """Load service-account credentials from inline JSON or file path."""
     if settings.firebase_credentials_json:
         return credentials.Certificate(json.loads(settings.firebase_credentials_json))
+    if settings.firebase_credentials_path:
+        from pathlib import Path
+
+        path = Path(settings.firebase_credentials_path)
+        if path.is_file():
+            return credentials.Certificate(str(path))
     return credentials.ApplicationDefault()
 
 

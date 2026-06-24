@@ -12,13 +12,27 @@ if [[ ! -f backend/.env ]]; then
   exit 1
 fi
 
-if [[ ! -f backend/firebase-service-account.json ]]; then
-  echo "Erreur: backend/firebase-service-account.json manquant."
+has_firebase_file=false
+has_firebase_json=false
+[[ -f backend/firebase-service-account.json ]] && has_firebase_file=true
+grep -qE '^FIREBASE_CREDENTIALS_JSON=.+' backend/.env 2>/dev/null && has_firebase_json=true
+
+if [[ "$has_firebase_file" == false && "$has_firebase_json" == false ]]; then
+  echo "Erreur: Firebase non configure."
+  echo "  Option A : FIREBASE_CREDENTIALS_JSON dans backend/.env"
+  echo "    bash deploy/ec2/print-firebase-env.sh"
+  echo "  Option B : fichier sur EC2"
+  echo "    bash deploy/ec2/upload-firebase.sh"
   exit 1
 fi
 
+COMPOSE_FILES=(-f docker-compose.prod.yml)
+if [[ "$has_firebase_file" == true ]]; then
+  COMPOSE_FILES+=(-f docker-compose.prod.firebase-file.yml)
+fi
+
 echo ">> Build et demarrage (production)..."
-docker compose -f docker-compose.prod.yml up -d --build
+docker compose "${COMPOSE_FILES[@]}" up -d --build
 
 echo ">> Attente sante API..."
 for _ in $(seq 1 30); do
@@ -32,5 +46,5 @@ for _ in $(seq 1 30); do
 done
 
 echo ">> Le backend ne repond pas encore. Logs:"
-docker compose -f docker-compose.prod.yml logs --tail=80 backend
+docker compose "${COMPOSE_FILES[@]}" logs --tail=80 backend
 exit 1

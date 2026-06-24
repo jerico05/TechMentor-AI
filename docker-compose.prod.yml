@@ -6,7 +6,7 @@
 # Prerequis sur le serveur :
 #   - Docker Engine + Compose v2
 #   - backend/.env (copie de backend/.env.production.example)
-#   - backend/firebase-service-account.json
+#   - Firebase : FIREBASE_CREDENTIALS_JSON dans .env OU fichier local (voir deploy/ec2/)
 #
 # Lancer :
 #   docker compose -f docker-compose.prod.yml up -d --build
@@ -83,7 +83,6 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
       QDRANT_URL: http://qdrant:6333
-      FIREBASE_CREDENTIALS_PATH: /app/firebase-service-account.json
       RUN_MIGRATIONS: "1"
       SKIP_RAG_INGEST: "0"
       CV_USE_CELERY: "true"
@@ -91,7 +90,6 @@ services:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
       - backend_uploads:/app/uploads
-      - ${FIREBASE_CREDENTIALS_FILE:-./backend/firebase-service-account.json}:/app/firebase-service-account.json:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -133,13 +131,11 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
       QDRANT_URL: http://qdrant:6333
-      FIREBASE_CREDENTIALS_PATH: /app/firebase-service-account.json
       RUN_MIGRATIONS: "0"
       SKIP_RAG_INGEST: "1"
       CV_USE_CELERY: "true"
     volumes:
       - backend_uploads:/app/uploads
-      - ${FIREBASE_CREDENTIALS_FILE:-./backend/firebase-service-account.json}:/app/firebase-service-account.json:ro
     depends_on:
       postgres:
         condition: service_healthy
