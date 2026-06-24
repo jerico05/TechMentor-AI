@@ -110,7 +110,7 @@ services:
         "--port",
         "8000",
         "--workers",
-        "2",
+        "1",
         "--proxy-headers",
         "--forwarded-allow-ips",
         "*",
@@ -152,7 +152,7 @@ services:
         "app.workers.celery_app",
         "worker",
         "--loglevel=info",
-        "--concurrency=2",
+        "--concurrency=1",
       ]
 
 networks:
