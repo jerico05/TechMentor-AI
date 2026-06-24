@@ -14,7 +14,7 @@ import {
 
 import { getFirebaseAuth, getFirebaseIdToken } from "@/lib/firebase";
 import { describeError } from "@/lib/constants";
-import { api, isApiError } from "@/services/api";
+import { api, clearAuthTokenCache, isApiError } from "@/services/api";
 import type { UserPublic } from "@/types";
 
 export interface SessionSyncInput {
@@ -28,15 +28,35 @@ export async function syncBackendSession(
   firebaseUser?: FirebaseUser,
 ): Promise<UserPublic> {
   const token = firebaseUser
-    ? await firebaseUser.getIdToken()
-    : await getFirebaseIdToken();
+    ? await firebaseUser.getIdToken(true)
+    : await getFirebaseIdToken(true);
   if (!token) {
     throw new Error("Aucune session Firebase active.");
   }
   const { data } = await api.post<UserPublic>("/auth/session", profile ?? {}, {
     headers: { Authorization: `Bearer ${token}` },
+    timeout: 45_000,
   });
   return data;
+}
+
+async function syncBackendSessionWithRetry(
+  profile?: SessionSyncInput,
+  firebaseUser?: FirebaseUser,
+): Promise<UserPublic> {
+  clearAuthTokenCache();
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    if (attempt > 0) {
+      await new Promise((resolve) => setTimeout(resolve, 600));
+    }
+    try {
+      return await syncBackendSession(profile, firebaseUser);
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError;
 }
 
 /** Fetch the current user profile from the backend. */
@@ -75,7 +95,8 @@ export async function loginWithGoogle(): Promise<{ firebaseUser: FirebaseUser; u
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
   const credential = await signInWithPopup(getFirebaseAuth(), provider);
-  const user = await syncBackendSession(undefined, credential.user);
+  await credential.user.reload();
+  const user = await syncBackendSessionWithRetry(undefined, credential.user);
   return { firebaseUser: credential.user, user };
 }
 
@@ -85,7 +106,7 @@ export async function loginWithGithub(): Promise<{ firebaseUser: FirebaseUser; u
   provider.addScope("read:user");
   const credential = await signInWithPopup(getFirebaseAuth(), provider);
   await credential.user.reload();
-  const user = await syncBackendSession(undefined, credential.user);
+  const user = await syncBackendSessionWithRetry(undefined, credential.user);
   return { firebaseUser: credential.user, user };
 }
 
@@ -137,6 +158,9 @@ export function formatAuthError(err: unknown, fallback: string): string {
 
   if (isApiError(err)) {
     const apiMessage = err.error.message?.trim();
+    if (apiMessage && err.error.code === "backend_unreachable") {
+      return apiMessage;
+    }
     if (apiMessage && err.error.code === "unauthorized" && apiMessage !== "unauthorized") {
       return apiMessage;
     }

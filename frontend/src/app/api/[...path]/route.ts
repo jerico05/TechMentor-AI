@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 const HOP_BY_HOP = new Set([
   "connection",
@@ -37,6 +38,11 @@ function forwardHeaders(request: NextRequest): Headers {
       headers.set(key, value);
     }
   });
+  const auth = request.headers.get("authorization");
+  if (auth) {
+    headers.set("authorization", auth);
+    headers.set("x-forwarded-authorization", auth);
+  }
   return headers;
 }
 

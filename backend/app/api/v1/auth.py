@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Header, status
 
-from app.core.deps import CurrentUser, DBSession, _extract_bearer
+from app.core.deps import CurrentUser, DBSession, extract_bearer_token
 from app.core.firebase import verify_firebase_token_async
 from app.schemas.auth import SessionSync, UserPublic
 from app.services.auth_service import AuthService, user_to_public
@@ -29,10 +29,11 @@ def get_auth_service(db: DBSession) -> AuthService:
 async def sync_session(
     payload: SessionSync | None = None,
     authorization: str | None = Header(default=None),
+    x_forwarded_authorization: str | None = Header(default=None),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> UserPublic:
     """Create or update the local user after Firebase sign-in/sign-up."""
-    token = _extract_bearer(authorization)
+    token = extract_bearer_token(authorization, x_forwarded_authorization)
     claims = await verify_firebase_token_async(token)
     return await auth_service.sync_user(claims, payload)
 
