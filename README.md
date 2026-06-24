@@ -1,127 +1,163 @@
 # TechMentor AI
 
-> Plateforme intelligente de mentorat académique et professionnel pour les
-> étudiants en informatique : analyse de profil, détection des lacunes,
-> roadmap personnalisée et mentor IA contextuel.
+Plateforme de mentorat académique et professionnel pour les étudiants en informatique. Analyse de profil, détection des lacunes, roadmap personnalisée et mentor IA contextuel.
 
-![status](https://img.shields.io/badge/status-MVP%20complet-green)
-![license](https://img.shields.io/badge/license-MIT-green)
-![stack](https://img.shields.io/badge/stack-FastAPI%20%7C%20Next.js%20%7C%20Postgres%20%7C%20Qdrant-orange)
+[![Status](https://img.shields.io/badge/status-MVP%20complet-green)]()
+[![License](https://img.shields.io/badge/license-MIT-green)]()
+[![Stack](https://img.shields.io/badge/stack-FastAPI%20%7C%20Next.js%20%7C%20PostgreSQL%20%7C%20Qdrant-orange)]()
 
----
+## Sommaire
 
-## 📑 Sommaire
-
-- [Aperçu](#aperçu)
+- [Présentation](#présentation)
+- [Fonctionnalités](#fonctionnalités)
 - [Architecture](#architecture)
 - [Stack technique](#stack-technique)
-- [Démarrage rapide (Docker)](#démarrage-rapide-docker)
+- [Prérequis](#prérequis)
+- [Installation](#installation)
+- [Démarrage avec Docker](#démarrage-avec-docker)
 - [Démarrage sans Docker](#démarrage-sans-docker)
-- [Structure du monorepo](#structure-du-monorepo)
+- [Structure du projet](#structure-du-projet)
 - [Variables d'environnement](#variables-denvironnement)
-- [Roadmap de développement](#roadmap-de-développement)
-- [Qualité](#qualité)
+- [Qualité et tests](#qualité-et-tests)
+- [Documentation complémentaire](#documentation-complémentaire)
+- [Licence](#licence)
 
----
+## Présentation
 
-## Aperçu
+TechMentor AI accompagne un étudiant en informatique tout au long de son parcours, de l'analyse de son profil jusqu'à la progression continue via un mentor IA.
 
-TechMentor AI accompagne un étudiant en informatique sur l'ensemble de son
-parcours :
+Le moteur conversationnel s'appuie sur un LLM compatible OpenAI (Groq, Mistral, etc.) et sur Gemini pour les embeddings vectoriels.
 
-1. Crée un compte (email/mot de passe ou OAuth Google/GitHub).
-2. Complète son profil étudiant (université, filière, objectif carrière).
-3. Téléverse son CV (PDF/DOCX) - extraction automatique des compétences.
-4. Connecte son GitHub - enrichissement du profil technique.
-5. Choisit un métier cible (Backend, Data Scientist, Data Engineer, …).
-6. Obtient une **skill gap analysis** + un **score** sur 100.
-7. Reçoit une **roadmap personnalisée** mois par mois + des projets recommandés.
-8. Échange avec un **mentor IA** contextuel (RAG sur une base de connaissances).
-9. Passe des **quiz** d'évaluation et voit son score évoluer.
+## Fonctionnalités
 
-Le LLM est fourni par [**Mistral**](https://mistral.ai/) (`ministral-3b-latest`)
-et les embeddings par [**Gemini**](https://ai.google.dev/) (`gemini-embedding-001`),
-via des APIs OpenAI-compatible.
-
----
+| Domaine | Description |
+|---------|-------------|
+| Authentification | Firebase Auth (email, Google, GitHub) |
+| Profil étudiant | Université, filière, objectif de carrière |
+| CV | Upload PDF/DOCX, extraction automatique des compétences |
+| GitHub | Enrichissement du profil technique |
+| Analyse | Skill gap analysis et score sur 100 |
+| Roadmap | Plan personnalisé mois par mois et projets recommandés |
+| Mentor IA | Chat contextuel avec RAG (base de connaissances vectorielle) |
+| Évaluation | Quiz, réévaluation du score et mise à jour de la roadmap |
+| Historique | Timeline des analyses, roadmaps, conversations et quiz |
 
 ## Architecture
 
 ```
-        ┌─────────────────────────────────────────┐
-        │            Frontend (Next.js)            │
-        │     App Router · TanStack Query · Zustand │
-        └──────────────────┬──────────────────────┘
-                           │ HTTPS (JWT Bearer)
-                           ▼
-        ┌─────────────────────────────────────────┐
-        │            FastAPI (ASGI)                 │
-        │  routers · services · repositories       │
-        │  services/ (LLM) · rag/ (Qdrant + Gemini) │
-        └───┬──────────┬──────────┬────────┬───────┘
-            ▼          ▼          ▼        ▼
-       PostgreSQL   Qdrant     Redis    Mistral
-       (métier)    (RAG KB)   (cache,   (LLM) +
-                               broker)   Gemini (embeddings)
+┌─────────────────────────────────────────────┐
+│           Frontend (Next.js 14)              │
+│     App Router · TanStack Query · Zustand    │
+└─────────────────────┬───────────────────────┘
+                      │ HTTPS / Firebase ID token
+                      ▼
+┌─────────────────────────────────────────────┐
+│              Backend (FastAPI)               │
+│   API REST · services · repositories · RAG   │
+└───┬──────────┬──────────┬──────────┬────────┘
+    ▼          ▼          ▼          ▼
+PostgreSQL   Qdrant     Redis      LLM + Gemini
+(métier)    (vecteurs)  (cache,    (chat +
+                         broker)    embeddings)
 ```
 
-Les tâches longues (parsing CV, fetch GitHub, indexing RAG) sont déléguées à un
-worker **Celery** afin de garder les requêtes API rapides.
-
----
+Les traitements longs (parsing CV, synchronisation GitHub, indexation RAG) peuvent être délégués à un worker Celery afin de conserver des temps de réponse API courts.
 
 ## Stack technique
 
-| Couche | Choix |
-|---|---|
-| Frontend | Next.js 14 (App Router), TypeScript strict, Tailwind CSS, shadcn/ui |
+| Couche | Technologies |
+|--------|--------------|
+| Frontend | Next.js 14, TypeScript, Tailwind CSS, shadcn/ui, TanStack Query, Zustand |
 | Backend | FastAPI, SQLAlchemy 2 (async), Alembic, Pydantic v2, Celery |
-| Base métier | PostgreSQL 16 |
-| Vector DB | Qdrant (collection `kb_chunks`, 1536d) |
+| Base de données | PostgreSQL 16 (Neon ou conteneur Docker) |
+| Base vectorielle | Qdrant (`kb_chunks`, 1536 dimensions) |
 | Cache / broker | Redis 7 |
-| LLM / embeddings | Mistral (LLM) + Gemini (embeddings) via SDK `openai` |
-| Auth | JWT maison + OAuth Google & GitHub (Authlib) |
+| IA | LLM compatible OpenAI (Groq / Mistral) + Gemini (embeddings) |
+| Authentification | Firebase Auth (client) + Admin SDK (serveur) |
 | Parsing CV | PyMuPDF, pdfplumber, python-docx |
-| Conteneurs | Docker, Docker Compose |
+| Conteneurisation | Docker, Docker Compose |
 
----
+## Prérequis
 
-## Démarrage rapide (Docker)
+- [Docker](https://docs.docker.com/get-docker/) et Docker Compose v2
+- Clés API : LLM (`MISTRAL_API_KEY`) et embeddings (`GEMINI_API_KEY`)
+- Projet [Firebase](https://console.firebase.google.com/) avec les providers Email, Google et GitHub activés
+- Fichier `firebase-service-account.json` à la racine du dépôt
 
-> Prérequis : Docker et Docker Compose v2.
+## Installation
 
 ```bash
-# 1. Cloner puis préparer la configuration backend
 git clone <repo-url> techmentor-ai
 cd techmentor-ai
+
+# Backend
 cp backend/.env.example backend/.env
-#   → éditez au moins : SECRET_KEY, MISTRAL_API_KEY, GEMINI_API_KEY
 
-# 2. Tout lancer
+# Frontend
+cp frontend/.env.example frontend/.env.local
+
+# Firebase (racine du projet)
+# Placer firebase-service-account.json à la racine
+```
+
+Renseigner au minimum dans `backend/.env` :
+
+- `SECRET_KEY`
+- `MISTRAL_API_KEY` et `MISTRAL_BASE_URL`
+- `GEMINI_API_KEY`
+- `FIREBASE_PROJECT_ID`
+
+Renseigner dans `frontend/.env.local` les variables `NEXT_PUBLIC_FIREBASE_*` (voir `frontend/.env.example`).
+
+## Démarrage avec Docker
+
+```bash
 docker compose up -d --build
-
-# 3. Vérifier que tout est sain
 docker compose ps
 curl http://localhost:8000/health/ready
 ```
 
-| Service | URL |
-|---|---|
-| Frontend (Next.js) | <http://localhost:3000> |
-| Backend (FastAPI, docs Swagger) | <http://localhost:8000/docs> |
-| Qdrant dashboard | <http://localhost:6333/dashboard> |
-| PostgreSQL | `localhost:5432` (user/db `techmentor`) |
+### Services exposés
+
+| Service | URL / accès |
+|---------|-------------|
+| Frontend | http://localhost:3000 |
+| Backend (Swagger) | http://localhost:8000/docs |
+| Qdrant | http://localhost:6333/dashboard |
+| PostgreSQL (Docker) | `localhost:15432` (user/db : `techmentor`) |
 | Redis | `localhost:6379` |
 
-Arrêt : `docker compose down`.
+### Worker Celery (optionnel)
 
-**Attention base de données :**
-- `docker compose down -v` **efface** le volume Postgres Docker local (pas Neon).
-- `DATABASE_URL` dans `backend/.env` fait foi : ne pas l'écraser dans docker-compose.
-- Local avec Neon : gardez vos URLs `neon.tech` dans `backend/.env`.
-- Vérifier la base active : `curl http://localhost:8000/health/ready` (champs `database_host`, `database_users`).
+Par défaut, le traitement CV est exécuté de manière synchrone (`CV_USE_CELERY=false`). Pour activer le worker :
 
----
+```bash
+docker compose --profile worker up -d
+```
+
+### Base de données
+
+`DATABASE_URL` dans `backend/.env` fait foi. Deux configurations sont possibles :
+
+| Mode | Configuration |
+|------|---------------|
+| Neon (cloud) | Conserver les URLs `neon.tech` dans `backend/.env` |
+| Postgres Docker | `postgresql+asyncpg://techmentor:techmentor@127.0.0.1:15432/techmentor` |
+
+Vérifier la base active :
+
+```bash
+curl http://localhost:8000/health/ready
+# Champ database_host dans la réponse
+```
+
+> **Attention** : `docker compose down -v` supprime les volumes Docker locaux (données Postgres, Qdrant, Redis). Cela n'affecte pas une base Neon distante.
+
+Arrêt des services :
+
+```bash
+docker compose down
+```
 
 ## Démarrage sans Docker
 
@@ -129,13 +165,15 @@ Arrêt : `docker compose down`.
 
 ```bash
 cd backend
-python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env                                 # renseigner SECRET_KEY + Mistral + Gemini
+cp .env.example .env
 
-# Démarrez Postgres + Redis + Qdrant (locaux ou via docker compose up postgres redis qdrant)
-alembic upgrade head
-uvicorn app.main:app --reload --port 8000
+# Démarrer Postgres, Redis et Qdrant (locaux ou via Docker)
+docker compose up -d postgres redis qdrant
+
+python -m alembic upgrade head
+python -m uvicorn app.main:app --reload --port 8000
 ```
 
 ### Frontend
@@ -144,85 +182,80 @@ uvicorn app.main:app --reload --port 8000
 cd frontend
 npm install
 cp .env.example .env.local
-npm run dev                                          # http://localhost:3000
+npm run dev
 ```
 
-En dev, le frontend proxie `/api/*` vers `http://localhost:8000`.
+En développement, le frontend proxifie `/api/*` vers le backend via `BACKEND_URL` (voir `frontend/next.config.mjs`).
 
----
-
-## Structure du monorepo
+## Structure du projet
 
 ```
 techmentor-ai/
-├── backend/                 # API FastAPI
-│   ├── alembic/             # migrations (0001: users + student_profiles)
+├── backend/                    # API FastAPI
+│   ├── alembic/                # Migrations de base de données
 │   ├── app/
-│   │   ├── api/             # routers (health + v1/profiles)
-│   │   ├── core/            # config, security, deps, logging, exceptions
-│   │   ├── database/        # async engine, session, declarative base
-│   │   ├── models/          # User, StudentProfile
-│   │   ├── schemas/         # Pydantic DTOs
-│   │   ├── repositories/    # couche DAO async
-│   │   └── main.py          # factory app()
+│   │   ├── api/                # Routeurs (health, v1/*)
+│   │   ├── core/               # Config, sécurité, dépendances
+│   │   ├── database/           # Moteur async, sessions
+│   │   ├── models/             # Modèles SQLAlchemy
+│   │   ├── schemas/            # DTOs Pydantic
+│   │   ├── repositories/       # Couche d'accès aux données
+│   │   ├── services/           # Logique métier et LLM
+│   │   ├── rag/                # Ingestion et recherche vectorielle
+│   │   └── workers/            # Tâches Celery
 │   ├── tests/
-│   ├── Dockerfile
-│   └── requirements.txt
-├── frontend/                # Next.js 14 App Router
+│   └── Dockerfile
+├── frontend/                   # Application Next.js
 │   ├── src/
-│   │   ├── app/             # (auth) + (app) route groups
-│   │   ├── components/      # ui/ (shadcn) + layout/
-│   │   ├── lib/  services/  store/  types/
-│   ├── Dockerfile
-│   └── package.json
-├── docker-compose.yml
-└── README.md
+│   │   ├── app/                # App Router ((auth), (app))
+│   │   ├── components/         # UI et layout
+│   │   ├── lib/                # Utilitaires et configuration
+│   │   ├── services/           # Clients API
+│   │   ├── store/              # État client (Zustand)
+│   │   └── types/              # Types TypeScript
+│   └── Dockerfile.dev
+├── deploy/                     # Scripts de déploiement
+├── docker-compose.yml          # Stack de développement
+├── docker-compose.prod.yml     # Stack de production
+└── firebase-service-account.json
 ```
-
----
 
 ## Variables d'environnement
 
-- **Backend** : voir [`backend/.env.example`](backend/.env.example).
-  Obligatoires au minimum : `SECRET_KEY`, `MISTRAL_API_KEY`, `GEMINI_API_KEY`.
-- **Frontend** : voir [`frontend/.env.example`](frontend/.env.example).
-  En dev, aucune valeur n'est requise (proxy local).
+| Fichier | Rôle |
+|---------|------|
+| [`backend/.env.example`](backend/.env.example) | Configuration serveur (DB, Redis, Qdrant, LLM, Firebase) |
+| [`frontend/.env.example`](frontend/.env.example) | Configuration client (Firebase, proxy API) |
+| [`.env.docker.example`](.env.docker.example) | Variables optionnelles pour Docker Compose |
 
-> ⚠️ Ne committez jamais vos `.env` réels. Ils sont ignorés par `.gitignore`.
+Ne jamais committer les fichiers `.env` réels. Ils sont exclus par `.gitignore`.
 
----
+## Qualité et tests
 
-## Roadmap de développement
-
-| Phase | Contenu | Statut |
-|---|---|---|
-| **P1 - Infra** | Monorepo, Docker compose, FastAPI + Next.js scaffolds, Alembic | ✅ **Livré** |
-| **P2 - Auth & Profil** | Firebase Auth, OAuth Google+GitHub, `student_profiles` | ✅ **Livré** |
-| **P3 - Upload & Parsing CV** | Upload PDF/DOCX, extraction LLM (Celery) | ✅ **Livré** |
-| **P4 - Référentiel** | Seed `skills` + 3 `career_paths` | ✅ **Livré** |
-| **P5 - Gap & Score** | Skill gap analysis + score pondéré + niveau | ✅ **Livré** |
-| **P6 - RAG KB** | Qdrant, ingestion roadmaps/certs/ressources statiques | ✅ **Livré** |
-| **P7 - Roadmap IA** | Génération LLM mois par mois + reco projets | ✅ **Livré** |
-| **P8 - Mentor IA** | Chat SSE streaming contextuel + historique | ✅ **Livré** |
-| **P9 - Historique** | Timeline analyses/roadmaps/conversations/quiz | ✅ **Livré** |
-| **P10 - Évaluation** | Quiz, réévaluation score, nouvelle roadmap auto | ✅ **Livré** |
-
----
-
-## Qualité
-
-Commandes locales utiles :
+### Backend
 
 ```bash
-# Backend
-cd backend && ruff check . && ruff format . && pytest
-
-# Frontend
-cd frontend && npm run lint && npm run type-check && npm run build
+cd backend
+ruff check .
+ruff format .
+pytest
 ```
 
----
+### Frontend
+
+```bash
+cd frontend
+npm run lint
+npm run type-check
+npm run build
+```
+
+## Documentation complémentaire
+
+- [Backend](backend/README.md) : structure, commandes et endpoints d'authentification
+- [Frontend](frontend/README.md) : structure, scripts et configuration Firebase
+- [Plan de développement](plan.MD) : spécifications détaillées du MVP
 
 ## Licence
 
-MIT © TechMentor AI.
+MIT - TechMentor AI.
