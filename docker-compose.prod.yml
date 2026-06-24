@@ -118,6 +118,7 @@ services:
 
   worker:
     image: techmentor-backend:prod
+    pull_policy: never
     container_name: tm-prod-worker
     restart: unless-stopped
     env_file:
