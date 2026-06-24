@@ -1,0 +1,52 @@
+# Production image only (no pytest, ruff, mypy) - build plus rapide sur EC2.
+
+# ===== Web framework =====
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+gunicorn==23.0.0
+
+# ===== Settings & validation =====
+pydantic[email]==2.10.4
+pydantic-settings==2.7.1
+python-dotenv==1.0.1
+
+# ===== Database =====
+SQLAlchemy==2.0.36
+alembic==1.14.0
+asyncpg==0.30.0
+psycopg[binary]==3.2.3
+
+# ===== Auth & security =====
+firebase-admin==6.6.0
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+itsdangerous==2.2.0
+PyJWT==2.10.1
+
+# ===== HTTP client =====
+httpx==0.28.1
+
+# ===== Async tasks =====
+redis==5.2.1
+celery[redis]==5.4.0
+
+# ===== AI / LLM / RAG =====
+openai==1.58.1
+langchain==0.3.14
+langchain-openai==0.2.14
+langchain-core==0.3.29
+langchain-qdrant==0.2.0
+qdrant-client==1.12.1
+tiktoken==0.8.0
+
+# ===== CV parsing =====
+PyMuPDF==1.25.2
+pdfplumber==0.11.4
+python-docx==1.1.2
+cloudinary==1.42.1
+
+# ===== Observability & utils =====
+structlog==24.4.0
+tenacity==9.0.0
+python-dateutil==2.9.0.post0

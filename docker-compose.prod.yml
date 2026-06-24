@@ -1,27 +1,29 @@
-# TechMentor AI - stack backend production (EC2 / VPS)
+# TechMentor AI - production (EC2 / VPS)
 #
-# Services : PostgreSQL, Redis, Qdrant, FastAPI, Celery worker
-# Pas de frontend, pas de hot-reload, reseau Docker interne.
+# Prerequis : Docker Compose v2, backend/.env (voir backend/.env.production.example)
+# Base Neon : DATABASE_URL dans backend/.env (pas de conteneur postgres)
 #
-# Prerequis sur le serveur :
-#   - Docker Engine + Compose v2
-#   - backend/.env (copie de backend/.env.production.example)
-#   - Firebase : FIREBASE_CREDENTIALS_JSON dans .env OU fichier local (voir deploy/ec2/)
-#   - Base Neon : DATABASE_URL dans backend/.env (pas de conteneur postgres)
-#   - Base locale Docker : profile local-db + POSTGRES_PASSWORD dans backend/.env
+# --- Commandes (depuis la racine du repo) ---
 #
-# Lancer :
-#   bash deploy/ec2/start-fast.sh     # rapide (image GHCR, recommande EC2)
-#   bash deploy/ec2/start.sh          # idem par defaut (USE_REGISTRY=1)
-#   BUILD_LOCAL=1 bash deploy/ec2/start.sh   # compile sur EC2 (lent)
-#   SKIP_PULL=1 SKIP_BUILD=1 bash deploy/ec2/start.sh  # redemarrage instant si images locales
+# Demarrer / redemarrer (rapide, ~30s si image deja construite) :
+#   docker compose --env-file backend/.env -f docker-compose.prod.yml up -d
 #
-# Verifier :
-#   curl http://localhost:8000/health/ready
-#   curl http://localhost:8000/health/rag
+# Premier deploy ou apres changement du code backend :
+#   docker compose --env-file backend/.env -f docker-compose.prod.yml up -d --build backend
 #
-# Logs :
-#   docker compose -f docker-compose.prod.yml logs -f backend worker
+# Firebase via fichier sur le serveur :
+#   docker compose --env-file backend/.env \
+#     -f docker-compose.prod.yml -f docker-compose.prod.firebase-file.yml up -d
+#
+# Build sur votre PC puis transfert EC2 (evite la compilation lente sur petit EC2) :
+#   docker compose -f docker-compose.prod.yml build backend
+#   docker save techmentor-backend:prod | gzip > tm-backend.tar.gz
+#   scp tm-backend.tar.gz ubuntu@VOTRE_IP:~/
+#   gunzip -c tm-backend.tar.gz | docker load
+#   docker compose --env-file backend/.env -f docker-compose.prod.yml up -d
+#
+# Verifier : curl http://localhost:8000/health
+# Logs     : docker compose --env-file backend/.env -f docker-compose.prod.yml logs -f backend
 
 name: techmentor-prod
 
@@ -31,6 +33,7 @@ services:
     image: postgres:16-alpine
     container_name: tm-prod-postgres
     restart: unless-stopped
+    pull_policy: if_not_present
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-techmentor}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Definir POSTGRES_PASSWORD dans backend/.env}
@@ -49,6 +52,7 @@ services:
     image: redis:7-alpine
     container_name: tm-prod-redis
     restart: unless-stopped
+    pull_policy: if_not_present
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis_data:/data
@@ -64,6 +68,7 @@ services:
     image: qdrant/qdrant:v1.12.4
     container_name: tm-prod-qdrant
     restart: unless-stopped
+    pull_policy: if_not_present
     volumes:
       - qdrant_data:/qdrant/storage
     networks:
@@ -74,6 +79,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     image: techmentor-backend:prod
+    pull_policy: never
     container_name: tm-prod-backend
     restart: unless-stopped
     env_file:
@@ -97,7 +103,7 @@ services:
         condition: service_healthy
         required: false
       redis:
-        condition: service_healthy
+        condition: service_started
       qdrant:
         condition: service_started
     networks:
@@ -141,7 +147,7 @@ services:
         condition: service_healthy
         required: false
       redis:
-        condition: service_healthy
+        condition: service_started
       backend:
         condition: service_started
     networks:

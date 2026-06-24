@@ -27,4 +27,4 @@ usermod -aG docker "${SUDO_USER:-ubuntu}" || true
 echo ">> Docker installe. Reconnectez-vous puis:"
 echo "   cd TechMentor-AI"
 echo "   cp backend/.env.production.example backend/.env"
-echo "   bash deploy/ec2/start.sh"
+echo "   docker compose --env-file backend/.env -f docker-compose.prod.yml up -d --build backend"

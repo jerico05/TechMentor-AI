@@ -21,8 +21,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN pip install --upgrade pip uv
 
 # Install deps first for better layer caching.
-COPY requirements.txt .
-RUN uv pip install --system --requirements requirements.txt
+COPY requirements-prod.txt .
+RUN uv pip install --system --requirements requirements-prod.txt
 
 # ---------- Runtime ----------
 FROM python:3.11-slim AS runtime
