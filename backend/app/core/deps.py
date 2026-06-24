@@ -27,16 +27,13 @@ def extract_bearer_token(
     raise UnauthorizedError("Token d'authentification manquant.")
 
 
-def _extract_bearer(authorization: str | None) -> str:
-    return extract_bearer_token(authorization)
-
-
 async def get_current_user(
     authorization: Annotated[str | None, Header()] = None,
+    x_forwarded_authorization: Annotated[str | None, Header()] = None,
     db: DBSession = None,  # type: ignore[assignment]
 ) -> User:
     """Resolve the user from a verified Firebase ID token."""
-    token = _extract_bearer(authorization)
+    token = extract_bearer_token(authorization, x_forwarded_authorization)
     claims = await verify_firebase_token_async(token)
 
     uid = claims.get("uid")

@@ -47,7 +47,7 @@ export async function prefetchAppPageChunks(): Promise<void> {
 }
 
 export async function prefetchAppData(queryClient: QueryClient): Promise<void> {
-  void getFirebaseIdToken();
+  await getFirebaseIdToken();
 
   const queries = [
     {

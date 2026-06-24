@@ -16,16 +16,20 @@ import { useAuthStore } from "@/store/auth-store";
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const setUser = useAuthStore((s) => s.setUser);
   const setLoading = useAuthStore((s) => s.setLoading);
+  const setFirebaseReady = useAuthStore((s) => s.setFirebaseReady);
 
   React.useEffect(() => {
     if (!isFirebaseConfigured()) {
       clearSessionCookie();
       setUser(null);
       setLoading(false);
+      setFirebaseReady(true);
       return;
     }
 
     const unsubscribe = onAuthStateChanged(getFirebaseAuth(), async (firebaseUser) => {
+      setFirebaseReady(true);
+
       if (!firebaseUser) {
         clearSessionCookie();
         clearAuthTokenCache();
@@ -54,7 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
     return () => unsubscribe();
-  }, [setUser, setLoading]);
+  }, [setUser, setLoading, setFirebaseReady]);
 
   return <>{children}</>;
 }

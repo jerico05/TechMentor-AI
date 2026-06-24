@@ -125,7 +125,7 @@ export default function DashboardPage() {
     roadmap: hasRoadmap,
   };
 
-  if (!mounted || isLoading) {
+  if (!mounted || !appReady || isLoading) {
     return <DashboardSkeleton firstName={user?.firstname ?? "étudiant"} />;
   }
 

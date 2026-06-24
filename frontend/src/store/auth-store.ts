@@ -12,9 +12,11 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   _hasHydrated: boolean;
+  _firebaseReady: boolean;
   setUser: (user: UserPublic | null) => void;
   setLoading: (loading: boolean) => void;
   setHasHydrated: (hydrated: boolean) => void;
+  setFirebaseReady: (ready: boolean) => void;
   logout: () => void;
 }
 
@@ -28,6 +30,7 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       isLoading: true,
       _hasHydrated: false,
+      _firebaseReady: false,
       setUser: (user) =>
         set({
           user,
@@ -36,6 +39,7 @@ export const useAuthStore = create<AuthState>()(
         }),
       setLoading: (isLoading) => set({ isLoading }),
       setHasHydrated: (hydrated) => set({ _hasHydrated: hydrated }),
+      setFirebaseReady: (ready) => set({ _firebaseReady: ready }),
       logout: () => {
         clearSessionCookie();
         clearAuthTokenCache();
