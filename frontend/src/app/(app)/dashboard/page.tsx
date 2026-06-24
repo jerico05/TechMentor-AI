@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import * as React from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BarChart3,
   BrainCircuit,
@@ -19,14 +19,13 @@ import { ProgressRing } from "@/components/crextio/progress-ring";
 import { Motion } from "@/components/ui/motion";
 import { useAppReady } from "@/lib/use-app-ready";
 import { useMounted } from "@/lib/use-mounted";
-import { fetchLatestAnalysis } from "@/services/analysis";
-import { fetchMyCV } from "@/services/cv";
-import { fetchGitHubAnalysis } from "@/services/github";
-import { fetchSessions } from "@/services/mentor";
-import { fetchQuizHistory } from "@/services/quiz";
-import { fetchActiveRoadmap } from "@/services/roadmap";
+import {
+  DASHBOARD_SUMMARY_KEY,
+  fetchDashboardSummary,
+  hydrateDashboardCaches,
+} from "@/services/dashboard";
 import { useAuthStore } from "@/store/auth-store";
-import { computeProfileProgress, fetchMyProfile } from "@/services/profile";
+import { computeProfileProgress } from "@/services/profile";
 
 const STEPS = [
   { id: "profile", label: "Compléter le profil", href: "/settings#settings-profile" },
@@ -60,43 +59,29 @@ export default function DashboardPage() {
   const mounted = useMounted();
   const user = useAuthStore((s) => s.user);
   const appReady = useAppReady();
-  const queryEnabled = { enabled: appReady };
+  const queryClient = useQueryClient();
 
-  const { data: profile, isLoading: profileLoading } = useQuery({
-    queryKey: ["profile", "me"],
-    queryFn: fetchMyProfile,
-    ...queryEnabled,
+  const { data: summary, isLoading } = useQuery({
+    queryKey: DASHBOARD_SUMMARY_KEY,
+    queryFn: fetchDashboardSummary,
+    enabled: appReady,
+    staleTime: 60_000,
   });
-  const { data: analysis } = useQuery({
-    queryKey: ["analysis", "me"],
-    queryFn: fetchLatestAnalysis,
-    ...queryEnabled,
-  });
-  const { data: cv } = useQuery({
-    queryKey: ["cv", "me"],
-    queryFn: fetchMyCV,
-    ...queryEnabled,
-  });
-  const { data: github } = useQuery({
-    queryKey: ["github", "me"],
-    queryFn: fetchGitHubAnalysis,
-    ...queryEnabled,
-  });
-  const { data: roadmap } = useQuery({
-    queryKey: ["roadmap", "me"],
-    queryFn: fetchActiveRoadmap,
-    ...queryEnabled,
-  });
-  const { data: sessions } = useQuery({
-    queryKey: ["mentor", "sessions"],
-    queryFn: fetchSessions,
-    ...queryEnabled,
-  });
-  const { data: quizHistory } = useQuery({
-    queryKey: ["quiz", "history"],
-    queryFn: fetchQuizHistory,
-    ...queryEnabled,
-  });
+
+  React.useEffect(() => {
+    if (!summary) return;
+    hydrateDashboardCaches(summary, (key, value) => {
+      queryClient.setQueryData(key, value);
+    });
+  }, [summary, queryClient]);
+
+  const profile = summary?.profile ?? null;
+  const analysis = summary?.analysis ?? null;
+  const cv = summary?.cv ?? null;
+  const github = summary?.github ?? null;
+  const roadmap = summary?.roadmap ?? null;
+  const sessions = summary?.mentor_sessions ?? null;
+  const quizHistory = summary?.quiz_history ?? null;
 
   const progress = computeProfileProgress(profile ?? null);
   const hasProfile = progress > 20;
@@ -140,7 +125,7 @@ export default function DashboardPage() {
     roadmap: hasRoadmap,
   };
 
-  if (!mounted || profileLoading) {
+  if (!mounted || isLoading) {
     return <DashboardSkeleton firstName={user?.firstname ?? "étudiant"} />;
   }
 

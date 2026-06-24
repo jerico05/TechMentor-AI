@@ -10,6 +10,7 @@ import { Motion } from "@/components/ui/motion";
 import { useAppReady } from "@/lib/use-app-ready";
 import { fetchLatestAnalysis, levelLabel, runAnalysis } from "@/services/analysis";
 import { fetchCareers } from "@/services/careers";
+import { invalidateDashboardSummary } from "@/services/dashboard";
 import { fetchMyProfile } from "@/services/profile";
 import { isApiError } from "@/services/api";
 
@@ -46,6 +47,7 @@ export default function AnalysisPage() {
       queryClient.invalidateQueries({ queryKey: ["profile", "me"] });
       queryClient.invalidateQueries({ queryKey: ["projects", "recommendations"] });
       queryClient.invalidateQueries({ queryKey: ["roadmap", "suggestion"] });
+      invalidateDashboardSummary(queryClient);
     },
   });
 

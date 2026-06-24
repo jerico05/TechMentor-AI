@@ -25,6 +25,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Motion } from "@/components/ui/motion";
 import { levelLabel } from "@/services/analysis";
+import { invalidateDashboardSummary } from "@/services/dashboard";
 import {
   fetchProjectCompletions,
   fetchProjectRecommendations,
@@ -256,6 +257,7 @@ export default function ProjectsPage() {
       queryClient.invalidateQueries({ queryKey: ["analysis", "me"] });
       queryClient.invalidateQueries({ queryKey: ["projects", "recommendations"] });
       queryClient.invalidateQueries({ queryKey: ["roadmap", "suggestion"] });
+      invalidateDashboardSummary(queryClient);
     },
     onSettled: () => setTogglingTitle(null),
   });

@@ -7,6 +7,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { useAppReady } from "@/lib/use-app-ready";
 import { fetchMyCV, uploadCV } from "@/services/cv";
+import { invalidateDashboardSummary } from "@/services/dashboard";
 import { isApiError } from "@/services/api";
 
 const MAX_CV_BYTES = 5 * 1024 * 1024;
@@ -42,6 +43,7 @@ export function CVSettingsPanel() {
     onSuccess: () => {
       setClientError(null);
       queryClient.invalidateQueries({ queryKey: ["cv", "me"] });
+      invalidateDashboardSummary(queryClient);
     },
   });
 

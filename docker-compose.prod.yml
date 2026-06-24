@@ -85,7 +85,7 @@ services:
       CELERY_RESULT_BACKEND: redis://redis:6379/2
       QDRANT_URL: http://qdrant:6333
       RUN_MIGRATIONS: "1"
-      SKIP_RAG_INGEST: "0"
+      SKIP_RAG_INGEST: "1"
       CV_USE_CELERY: "true"
     ports:
       - "${BACKEND_PORT:-8000}:8000"

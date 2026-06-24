@@ -8,6 +8,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Motion } from "@/components/ui/motion";
 import { levelLabel } from "@/services/analysis";
+import { invalidateDashboardSummary } from "@/services/dashboard";
 import { generateQuiz, submitQuiz, type QuizQuestion, type QuizSubmitResponse } from "@/services/quiz";
 import { isApiError } from "@/services/api";
 
@@ -38,6 +39,7 @@ export default function QuizPage() {
       void queryClient.invalidateQueries({ queryKey: ["quiz", "history"] });
       void queryClient.invalidateQueries({ queryKey: ["projects", "recommendations"] });
       void queryClient.invalidateQueries({ queryKey: ["roadmap", "suggestion"] });
+      invalidateDashboardSummary(queryClient);
     },
   });
 

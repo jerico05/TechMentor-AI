@@ -3,15 +3,15 @@ import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.
 
 import { APP_ROUTES } from "@/lib/app-routes";
 import { getFirebaseIdToken } from "@/lib/firebase";
-import { fetchLatestAnalysis, fetchAnalysisHistory } from "@/services/analysis";
+import { fetchAnalysisHistory } from "@/services/analysis";
 import { fetchCareers } from "@/services/careers";
-import { fetchMyCV } from "@/services/cv";
-import { fetchGitHubAnalysis } from "@/services/github";
-import { fetchSessions } from "@/services/mentor";
-import { fetchMyProfile } from "@/services/profile";
+import {
+  DASHBOARD_SUMMARY_KEY,
+  fetchDashboardSummary,
+  hydrateDashboardCaches,
+} from "@/services/dashboard";
 import { fetchProjectCompletions, fetchProjectRecommendations } from "@/services/projects";
-import { fetchQuizHistory } from "@/services/quiz";
-import { fetchActiveRoadmap, fetchRoadmapHistory, fetchRoadmapSuggestion } from "@/services/roadmap";
+import { fetchRoadmapHistory, fetchRoadmapSuggestion } from "@/services/roadmap";
 
 type RouterPrefetch = Pick<AppRouterInstance, "prefetch">;
 
@@ -50,17 +50,21 @@ export async function prefetchAppData(queryClient: QueryClient): Promise<void> {
   void getFirebaseIdToken();
 
   const queries = [
-    { queryKey: ["profile", "me"] as const, queryFn: fetchMyProfile },
+    {
+      queryKey: DASHBOARD_SUMMARY_KEY,
+      queryFn: async () => {
+        const summary = await fetchDashboardSummary();
+        hydrateDashboardCaches(summary, (key, value) => {
+          queryClient.setQueryData(key, value);
+        });
+        return summary;
+      },
+      staleTime: 60 * 1000,
+    },
     { queryKey: ["careers"] as const, queryFn: fetchCareers, staleTime: 10 * 60 * 1000 },
-    { queryKey: ["analysis", "me"] as const, queryFn: fetchLatestAnalysis },
     { queryKey: ["analysis", "history"] as const, queryFn: fetchAnalysisHistory },
-    { queryKey: ["cv", "me"] as const, queryFn: fetchMyCV },
-    { queryKey: ["github", "me"] as const, queryFn: fetchGitHubAnalysis },
-    { queryKey: ["roadmap", "me"] as const, queryFn: fetchActiveRoadmap },
     { queryKey: ["roadmap", "suggestion"] as const, queryFn: fetchRoadmapSuggestion },
     { queryKey: ["roadmap", "history"] as const, queryFn: fetchRoadmapHistory },
-    { queryKey: ["mentor", "sessions"] as const, queryFn: fetchSessions },
-    { queryKey: ["quiz", "history"] as const, queryFn: fetchQuizHistory },
     {
       queryKey: ["projects", "recommendations"] as const,
       queryFn: fetchProjectRecommendations,

@@ -14,6 +14,7 @@ import { ModernSelect } from "@/components/ui/modern-select";
 import { useAppReady } from "@/lib/use-app-ready";
 import { ACADEMIC_LEVEL_GROUP_ORDER, ACADEMIC_LEVEL_OPTIONS } from "@/lib/academic-levels";
 import { fetchCareers } from "@/services/careers";
+import { invalidateDashboardSummary } from "@/services/dashboard";
 import {
   computeProfileProgress,
   deleteMyProfile,
@@ -69,13 +70,17 @@ export function ProfileSettingsPanel() {
 
   const mutation = useMutation({
     mutationFn: upsertMyProfile,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["profile", "me"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile", "me"] });
+      invalidateDashboardSummary(queryClient);
+    },
   });
 
   const deleteMutation = useMutation({
     mutationFn: deleteMyProfile,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile", "me"] });
+      invalidateDashboardSummary(queryClient);
     },
   });
 

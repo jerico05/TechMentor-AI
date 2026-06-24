@@ -11,6 +11,7 @@ import { useAppReady } from "@/lib/use-app-ready";
 import { buildPreviewMonths } from "@/lib/roadmap-infographic";
 import { ROADMAP_DURATION_LABELS, ROADMAP_DURATION_OPTIONS } from "@/lib/roadmap-duration";
 import { fetchActiveRoadmap, fetchRoadmapSuggestion, generateRoadmap } from "@/services/roadmap";
+import { invalidateDashboardSummary } from "@/services/dashboard";
 import { isApiError } from "@/services/api";
 import type { RoadmapDurationMonths } from "@/types";
 import { cn } from "@/lib/utils";
@@ -36,7 +37,10 @@ export default function RoadmapPage() {
 
   const mutation = useMutation({
     mutationFn: () => generateRoadmap({ durationMonths: selectedDuration }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["roadmap", "me"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["roadmap", "me"] });
+      invalidateDashboardSummary(queryClient);
+    },
   });
 
   const active = mutation.data ?? roadmap;

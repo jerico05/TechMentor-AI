@@ -138,6 +138,16 @@ export interface Roadmap {
   created_at?: string;
 }
 
+export interface DashboardSummary {
+  profile: StudentProfile | null;
+  analysis: AnalysisResult | null;
+  cv: CVFile | null;
+  github: GitHubAnalysis | null;
+  roadmap: Roadmap | null;
+  mentor_sessions: ChatSession[];
+  quiz_history: QuizAttempt[];
+}
+
 export interface QuizQuestion {
   id: string;
   question: string;

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAppReady } from "@/lib/use-app-ready";
 import { analyzeGitHub, fetchGitHubAnalysis } from "@/services/github";
+import { invalidateDashboardSummary } from "@/services/dashboard";
 import { fetchMyProfile } from "@/services/profile";
 import { isApiError } from "@/services/api";
 
@@ -46,7 +47,10 @@ export function GitHubSettingsPanel() {
 
   const mutation = useMutation({
     mutationFn: () => analyzeGitHub(url || undefined),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["github", "me"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["github", "me"] });
+      invalidateDashboardSummary(queryClient);
+    },
   });
 
   const statusInfo = analysis ? githubStatusLabel(analysis.status) : null;

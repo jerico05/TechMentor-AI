@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from app.api.v1 import analysis, auth, careers, cv, github, mentor, profiles, projects, quiz, roadmaps
+from app.api.v1 import analysis, auth, careers, cv, dashboard, github, mentor, profiles, projects, quiz, roadmaps
 
 api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
+api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
 api_router.include_router(profiles.router, prefix="/profiles", tags=["profiles"])
 api_router.include_router(mentor.router, prefix="/mentor", tags=["mentor"])
 api_router.include_router(cv.router, prefix="/cv", tags=["cv"])
