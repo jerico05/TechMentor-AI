@@ -7,6 +7,8 @@
 #   - Docker Engine + Compose v2
 #   - backend/.env (copie de backend/.env.production.example)
 #   - Firebase : FIREBASE_CREDENTIALS_JSON dans .env OU fichier local (voir deploy/ec2/)
+#   - Base Neon : DATABASE_URL dans backend/.env (pas de conteneur postgres)
+#   - Base locale Docker : profile local-db + POSTGRES_PASSWORD dans backend/.env
 #
 # Lancer :
 #   bash deploy/ec2/start.sh
@@ -24,6 +26,7 @@ name: techmentor-prod
 
 services:
   postgres:
+    profiles: ["local-db"]
     image: postgres:16-alpine
     container_name: tm-prod-postgres
     restart: unless-stopped
@@ -77,10 +80,6 @@ services:
     environment:
       APP_ENV: production
       APP_DEBUG: "false"
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: "5432"
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-techmentor}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-techmentor}
-      SYNC_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-techmentor}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-techmentor}
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
@@ -95,6 +94,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+        required: false
       redis:
         condition: service_healthy
       qdrant:
@@ -126,10 +126,6 @@ services:
     environment:
       APP_ENV: production
       APP_DEBUG: "false"
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: "5432"
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-techmentor}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-techmentor}
-      SYNC_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-techmentor}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-techmentor}
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
@@ -142,6 +138,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+        required: false
       redis:
         condition: service_healthy
       backend:

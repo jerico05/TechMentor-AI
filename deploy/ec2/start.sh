@@ -26,11 +26,25 @@ if [[ "$has_firebase_file" == false && "$has_firebase_json" == false ]]; then
   exit 1
 fi
 
-# Docker Compose lit ${POSTGRES_PASSWORD} depuis --env-file, pas depuis env_file des services.
-if ! grep -qE '^POSTGRES_PASSWORD=.+' backend/.env; then
-  echo "Erreur: POSTGRES_PASSWORD manquant dans backend/.env"
-  echo "  nano backend/.env"
-  exit 1
+# Docker Compose lit ${POSTGRES_PASSWORD} depuis --env-file (profile local-db seulement).
+uses_local_postgres=false
+if grep -qE '^DATABASE_URL=.*@(postgres|127\.0\.0\.1)' backend/.env 2>/dev/null; then
+  uses_local_postgres=true
+fi
+if grep -qi 'neon' backend/.env 2>/dev/null; then
+  uses_local_postgres=false
+fi
+
+if [[ "$uses_local_postgres" == true ]]; then
+  if ! grep -qE '^POSTGRES_PASSWORD=.+' backend/.env; then
+    echo "Erreur: POSTGRES_PASSWORD manquant dans backend/.env"
+    echo "  nano backend/.env"
+    exit 1
+  fi
+  export COMPOSE_PROFILES=local-db
+else
+  export COMPOSE_PROFILES=
+  echo ">> Base externe detectee (Neon). Postgres Docker desactive."
 fi
 
 COMPOSE_FILES=(-f docker-compose.prod.yml)
