@@ -47,6 +47,22 @@ else
   echo ">> Base externe detectee (Neon). Postgres Docker desactive."
 fi
 
+db_url="$(grep -E '^DATABASE_URL=' backend/.env 2>/dev/null | tail -1 | cut -d= -f2- | tr -d ' \"' || true)"
+if [[ -z "$db_url" ]]; then
+  echo "Erreur: DATABASE_URL vide dans backend/.env"
+  echo "  Sans DATABASE_URL explicite, le backend derive une URL vers postgres Docker (base vide)."
+  echo "  Copiez vos URLs Neon depuis votre machine locale."
+  exit 1
+fi
+if [[ "$uses_local_postgres" == false && "$db_url" == *"@postgres:"* ]]; then
+  echo "Erreur: DATABASE_URL pointe vers @postgres mais le profile local-db est desactive."
+  echo "  Vous risquez de lire une base Docker vide a chaque deploy."
+  exit 1
+fi
+if [[ "$uses_local_postgres" == false ]]; then
+  echo ">> DATABASE_URL: hote $(echo "$db_url" | sed -E 's|.*@([^/:]+).*|\1|')"
+fi
+
 COMPOSE_FILES=(-f docker-compose.prod.yml)
 if [[ "$has_firebase_file" == true ]]; then
   COMPOSE_FILES+=(-f docker-compose.prod.firebase-file.yml)

@@ -29,21 +29,9 @@ from app.rag.ingest import ingest_knowledge_base
 logger = get_logger(__name__)
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Startup/shutdown lifecycle."""
-    configure_logging()
-    logger.info(
-        "app.starting",
-        env=settings.app_env,
-        debug=settings.app_debug,
-        api_prefix=settings.api_v1_prefix,
-    )
-    # Ensure the upload directory exists.
-    _ = settings.upload_path
-    async with AsyncSessionLocal() as db:
-        await seed_career_catalog(db)
-    await asyncio.to_thread(warmup_firebase)
+async def _background_startup() -> None:
+    """Non-blocking RAG checks so the API can serve traffic immediately."""
+    await asyncio.sleep(2)
     if os.environ.get("SKIP_RAG_INGEST") != "1":
         try:
             indexed = await asyncio.to_thread(ingest_knowledge_base)
@@ -56,6 +44,26 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.info("rag.startup.embeddings_ok")
     else:
         logger.error("rag.startup.embeddings_unavailable", detail=embed_status)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Startup/shutdown lifecycle."""
+    configure_logging()
+    logger.info(
+        "app.starting",
+        env=settings.app_env,
+        debug=settings.app_debug,
+        api_prefix=settings.api_v1_prefix,
+        database_host=settings.database_host,
+        database_neon=settings.uses_neon_database,
+    )
+    # Ensure the upload directory exists.
+    _ = settings.upload_path
+    async with AsyncSessionLocal() as db:
+        await seed_career_catalog(db)
+    await asyncio.to_thread(warmup_firebase)
+    asyncio.create_task(_background_startup())
     yield
     logger.info("app.stopping")
 

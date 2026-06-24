@@ -15,6 +15,8 @@ import { fetchRoadmapHistory, fetchRoadmapSuggestion } from "@/services/roadmap"
 
 type RouterPrefetch = Pick<AppRouterInstance, "prefetch">;
 
+const PREFETCH_DEFER_MS = 500;
+
 /** Warm webpack chunks for every app page (first click feels instant). */
 const APP_PAGE_IMPORTS = [
   () => import("@/app/(app)/dashboard/page"),
@@ -46,22 +48,34 @@ export async function prefetchAppPageChunks(): Promise<void> {
   ]);
 }
 
-export async function prefetchAppData(queryClient: QueryClient): Promise<void> {
-  await getFirebaseIdToken();
-
-  const queries = [
-    {
-      queryKey: DASHBOARD_SUMMARY_KEY,
-      queryFn: async () => {
-        const summary = await fetchDashboardSummary();
-        hydrateDashboardCaches(summary, (key, value) => {
-          queryClient.setQueryData(key, value);
-        });
-        return summary;
-      },
-      staleTime: 60 * 1000,
+async function prefetchDashboardSummary(queryClient: QueryClient): Promise<void> {
+  await queryClient.prefetchQuery({
+    queryKey: DASHBOARD_SUMMARY_KEY,
+    queryFn: async () => {
+      const summary = await fetchDashboardSummary();
+      hydrateDashboardCaches(summary, (key, value) => {
+        queryClient.setQueryData(key, value);
+      });
+      return summary;
     },
-    { queryKey: ["careers"] as const, queryFn: fetchCareers, staleTime: 10 * 60 * 1000 },
+    staleTime: 60 * 1000,
+  });
+}
+
+export async function prefetchPriorityData(queryClient: QueryClient): Promise<void> {
+  await getFirebaseIdToken();
+  await Promise.allSettled([
+    prefetchDashboardSummary(queryClient),
+    queryClient.prefetchQuery({
+      queryKey: ["careers"] as const,
+      queryFn: fetchCareers,
+      staleTime: 10 * 60 * 1000,
+    }),
+  ]);
+}
+
+export async function prefetchSecondaryData(queryClient: QueryClient): Promise<void> {
+  const queries = [
     { queryKey: ["analysis", "history"] as const, queryFn: fetchAnalysisHistory },
     { queryKey: ["roadmap", "suggestion"] as const, queryFn: fetchRoadmapSuggestion },
     { queryKey: ["roadmap", "history"] as const, queryFn: fetchRoadmapHistory },
@@ -84,8 +98,17 @@ export async function prefetchAppData(queryClient: QueryClient): Promise<void> {
   );
 }
 
+/** @deprecated Use prefetchPriorityData + prefetchSecondaryData */
+export async function prefetchAppData(queryClient: QueryClient): Promise<void> {
+  await prefetchPriorityData(queryClient);
+  await prefetchSecondaryData(queryClient);
+}
+
 export function runAppPrefetch(router: RouterPrefetch, queryClient: QueryClient): void {
   prefetchAppRoutes(router);
-  void prefetchAppPageChunks();
-  void prefetchAppData(queryClient);
+  void prefetchPriorityData(queryClient);
+  window.setTimeout(() => {
+    void prefetchAppPageChunks();
+    void prefetchSecondaryData(queryClient);
+  }, PREFETCH_DEFER_MS);
 }

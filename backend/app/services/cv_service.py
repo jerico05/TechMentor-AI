@@ -12,9 +12,10 @@ from app.core.config import settings
 from app.core.exceptions import ValidationError
 from app.core.logging import get_logger
 from app.models.cv_file import CVFile
-from app.models.skill import Skill, UserSkill
+from app.models.skill import Skill
 from app.services.cv_storage import read_cv_bytes, save_cv_file
 from app.utils.cv_parser import extract_text_from_bytes
+from app.utils.skill_sync import sync_detected_skills
 
 logger = get_logger(__name__)
 
@@ -123,17 +124,11 @@ class CVService:
         from app.utils.llm_helpers import extract_skills_from_text
 
         detected = await extract_skills_from_text(text, names)
-        name_to_id = {s.name.lower(): s.id for s in skills}
-
-        for name in detected:
-            skill_id = name_to_id.get(name.lower())
-            if not skill_id:
-                continue
-            existing = await self.db.execute(
-                select(UserSkill).where(UserSkill.user_id == user_id, UserSkill.skill_id == skill_id)
-            )
-            if existing.scalar_one_or_none():
-                continue
-            self.db.add(UserSkill(user_id=user_id, skill_id=skill_id, source="cv", confidence=85))
-
+        await sync_detected_skills(
+            self.db,
+            user_id,
+            detected,
+            source="cv",
+            confidence=85,
+        )
         logger.info("cv.skills_synced", user_id=user_id, count=len(detected))

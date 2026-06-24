@@ -1,13 +1,12 @@
-import { api } from "@/services/api";
+import { api, apiSlow } from "@/services/api";
 import type { GitHubAnalysis } from "@/types";
 
 export type { GitHubAnalysis } from "@/types";
 
 export async function analyzeGitHub(githubUrl?: string): Promise<GitHubAnalysis> {
-  const { data } = await api.post<GitHubAnalysis>(
+  const { data } = await apiSlow.post<GitHubAnalysis>(
     "/github/analyze",
     { github_url: githubUrl ?? null },
-    { timeout: 90_000 },
   );
   return data;
 }

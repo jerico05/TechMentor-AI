@@ -83,13 +83,9 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-techmentor}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-techmentor}
-      POSTGRES_DB: ${POSTGRES_DB:-techmentor}
-      POSTGRES_HOST: 127.0.0.1
-      POSTGRES_PORT: 15432
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-techmentor}:${POSTGRES_PASSWORD:-techmentor}@127.0.0.1:15432/${POSTGRES_DB:-techmentor}
-      SYNC_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-techmentor}:${POSTGRES_PASSWORD:-techmentor}@127.0.0.1:15432/${POSTGRES_DB:-techmentor}
+      # Ne pas ecraser DATABASE_URL : lire backend/.env (Neon ou Postgres local).
+      # Pour Postgres Docker local, definir dans backend/.env :
+      #   DATABASE_URL=postgresql+asyncpg://techmentor:techmentor@127.0.0.1:15432/techmentor
       REDIS_URL: redis://127.0.0.1:6379/0
       CELERY_BROKER_URL: redis://127.0.0.1:6379/1
       CELERY_RESULT_BACKEND: redis://127.0.0.1:6379/2
@@ -121,11 +117,6 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-techmentor}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-techmentor}
-      POSTGRES_DB: ${POSTGRES_DB:-techmentor}
-      POSTGRES_HOST: postgres
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-techmentor}:${POSTGRES_PASSWORD:-techmentor}@postgres:5432/${POSTGRES_DB:-techmentor}
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2

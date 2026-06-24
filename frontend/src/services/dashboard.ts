@@ -23,6 +23,20 @@ export function invalidateDashboardSummary(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: DASHBOARD_SUMMARY_KEY });
 }
 
+export function prefetchDashboardSummary(queryClient: QueryClient): void {
+  void queryClient.prefetchQuery({
+    queryKey: DASHBOARD_SUMMARY_KEY,
+    queryFn: async () => {
+      const summary = await fetchDashboardSummary();
+      hydrateDashboardCaches(summary, (key, value) => {
+        queryClient.setQueryData(key, value);
+      });
+      return summary;
+    },
+    staleTime: 60_000,
+  });
+}
+
 /** Hydrate individual React Query caches from the summary payload. */
 export function hydrateDashboardCaches(
   data: DashboardSummary,

@@ -1,10 +1,10 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Sparkles } from "lucide-react";
 import { useState } from "react";
 
-import { RoadmapInfographic } from "@/components/roadmap/roadmap-infographic";
 import { Button } from "@/components/ui/button";
 import { Motion } from "@/components/ui/motion";
 import { useAppReady } from "@/lib/use-app-ready";
@@ -15,6 +15,18 @@ import { invalidateDashboardSummary } from "@/services/dashboard";
 import { isApiError } from "@/services/api";
 import type { RoadmapDurationMonths } from "@/types";
 import { cn } from "@/lib/utils";
+
+const RoadmapInfographic = dynamic(
+  () => import("@/components/roadmap/roadmap-infographic").then((m) => m.RoadmapInfographic),
+  {
+    loading: () => (
+      <div className="flex justify-center py-16">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    ),
+    ssr: false,
+  },
+);
 
 export default function RoadmapPage() {
   const queryClient = useQueryClient();

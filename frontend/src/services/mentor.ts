@@ -1,6 +1,6 @@
 import { API_BASE_URL } from "@/lib/constants";
 import { getFirebaseIdToken } from "@/lib/firebase";
-import { api, isApiError } from "@/services/api";
+import { api, apiSlow, isApiError } from "@/services/api";
 import type {
   ChatMessage,
   ChatMessageRecord,
@@ -15,14 +15,13 @@ export async function sendMentorMessage(
   history: ChatMessage[],
   sessionId?: number | null,
 ): Promise<MentorChatResponse> {
-  const { data } = await api.post<MentorChatResponse>(
+  const { data } = await apiSlow.post<MentorChatResponse>(
     "/mentor/chat",
     {
       message,
       history: history.map((m) => ({ role: m.role, content: m.content })),
       session_id: sessionId ?? null,
     },
-    { timeout: 90_000 },
   );
   return data;
 }

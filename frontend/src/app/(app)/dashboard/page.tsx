@@ -18,7 +18,6 @@ import {
 import { ProgressRing } from "@/components/crextio/progress-ring";
 import { Motion } from "@/components/ui/motion";
 import { useAppReady } from "@/lib/use-app-ready";
-import { useMounted } from "@/lib/use-mounted";
 import {
   DASHBOARD_SUMMARY_KEY,
   fetchDashboardSummary,
@@ -56,7 +55,6 @@ const PROGRESS_METRICS = [
 const WEEK_DAYS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 
 export default function DashboardPage() {
-  const mounted = useMounted();
   const user = useAuthStore((s) => s.user);
   const appReady = useAppReady();
   const queryClient = useQueryClient();
@@ -125,7 +123,7 @@ export default function DashboardPage() {
     roadmap: hasRoadmap,
   };
 
-  if (!mounted || !appReady || isLoading) {
+  if (!appReady || (isLoading && !summary)) {
     return <DashboardSkeleton firstName={user?.firstname ?? "étudiant"} />;
   }
 

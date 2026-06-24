@@ -113,7 +113,13 @@ curl http://localhost:8000/health/ready
 | PostgreSQL | `localhost:5432` (user/db `techmentor`) |
 | Redis | `localhost:6379` |
 
-Arrêt : `docker compose down` - réinitialiser la BDD : `docker compose down -v`.
+Arrêt : `docker compose down`.
+
+**Attention base de données :**
+- `docker compose down -v` **efface** le volume Postgres Docker local (pas Neon).
+- `DATABASE_URL` dans `backend/.env` fait foi : ne pas l'écraser dans docker-compose.
+- Local avec Neon : gardez vos URLs `neon.tech` dans `backend/.env`.
+- Vérifier la base active : `curl http://localhost:8000/health/ready` (champs `database_host`, `database_users`).
 
 ---
 

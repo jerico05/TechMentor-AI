@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -22,6 +23,7 @@ import {
   loginWithGoogle,
   formatAuthError,
 } from "@/services/auth";
+import { prefetchDashboardSummary } from "@/services/dashboard";
 import { useAuthStore } from "@/store/auth-store";
 
 const loginSchema = z.object({
@@ -33,6 +35,7 @@ type LoginForm = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const setUser = useAuthStore((s) => s.setUser);
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
@@ -52,6 +55,7 @@ export default function LoginPage() {
       const { user } = await loginWithEmail(data.email, data.password);
       setSessionCookie();
       setUser(user);
+      prefetchDashboardSummary(queryClient);
       router.replace("/dashboard");
     } catch (err) {
       setError(formatAuthError(err, "Connexion impossible. Réessayez."));
@@ -68,6 +72,7 @@ export default function LoginPage() {
         provider === "google" ? await loginWithGoogle() : await loginWithGithub();
       setSessionCookie();
       setUser(result.user);
+      prefetchDashboardSummary(queryClient);
       router.replace("/dashboard");
     } catch (err) {
       setError(formatAuthError(err, "Connexion OAuth impossible."));

@@ -35,7 +35,7 @@ export async function syncBackendSession(
   }
   const { data } = await api.post<UserPublic>("/auth/session", profile ?? {}, {
     headers: { Authorization: `Bearer ${token}` },
-    timeout: 45_000,
+    timeout: 20_000,
   });
   return data;
 }

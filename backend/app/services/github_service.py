@@ -12,10 +12,11 @@ from app.core.config import settings
 from app.core.exceptions import ValidationError
 from app.core.logging import get_logger
 from app.models.github_analysis import GitHubAnalysis
-from app.models.skill import Skill, UserSkill
+from app.models.skill import Skill
 from app.repositories.student_profile_repository import StudentProfileRepository
 from app.utils.cv_parser import extract_github_username
 from app.utils.llm_helpers import extract_skills_from_text
+from app.utils.skill_sync import sync_detected_skills
 
 logger = get_logger(__name__)
 
@@ -154,21 +155,14 @@ class GitHubService:
         skills = (await self.db.execute(select(Skill))).scalars().all()
         names = [s.name for s in skills]
         detected = await extract_skills_from_text(text, names)
-        name_to_id = {s.name.lower(): s.id for s in skills}
-
-        for name in detected:
-            skill_id = name_to_id.get(name.lower())
-            if not skill_id:
-                continue
-            existing = await self.db.execute(
-                select(UserSkill).where(UserSkill.user_id == user_id, UserSkill.skill_id == skill_id)
-            )
-            row = existing.scalar_one_or_none()
-            if row:
-                if row.source != "cv":
-                    row.source = "github"
-                continue
-            self.db.add(UserSkill(user_id=user_id, skill_id=skill_id, source="github", confidence=75))
+        await sync_detected_skills(
+            self.db,
+            user_id,
+            detected,
+            source="github",
+            confidence=75,
+            upgrade_github_source=True,
+        )
 
     @staticmethod
     def _is_stale(analysis: GitHubAnalysis) -> bool:

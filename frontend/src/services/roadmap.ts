@@ -1,4 +1,4 @@
-import { api } from "@/services/api";
+import { api, apiSlow } from "@/services/api";
 import type { Roadmap, RoadmapContent, RoadmapDurationMonths, RoadmapMonth, RoadmapSuggestion } from "@/types";
 
 export type { Roadmap, RoadmapContent, RoadmapDurationMonths, RoadmapMonth, RoadmapSuggestion } from "@/types";
@@ -11,13 +11,13 @@ export async function fetchRoadmapSuggestion(): Promise<RoadmapSuggestion> {
 export async function generateRoadmap(
   options?: { careerPathId?: number; durationMonths?: RoadmapDurationMonths },
 ): Promise<Roadmap> {
-  const { data } = await api.post<Roadmap>(
+  const { data } = await apiSlow.post<Roadmap>(
     "/roadmaps/generate",
     {
       career_path_id: options?.careerPathId ?? null,
       duration_months: options?.durationMonths ?? null,
     },
-    { timeout: 120_000 },
+    { timeout: 60_000 },
   );
   return data;
 }

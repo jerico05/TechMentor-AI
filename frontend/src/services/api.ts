@@ -39,8 +39,46 @@ export function clearAuthTokenCache(): void {
 export const api: AxiosInstance = axios.create({
   baseURL: `${API_BASE_URL}/api/v1`,
   headers: { "Content-Type": "application/json" },
-  timeout: 45_000,
+  timeout: 15_000,
 });
+
+/** Long-running endpoints (LLM, CV parsing, roadmap generation). */
+export const apiSlow: AxiosInstance = axios.create({
+  baseURL: `${API_BASE_URL}/api/v1`,
+  headers: { "Content-Type": "application/json" },
+  timeout: 60_000,
+});
+
+for (const client of [apiSlow]) {
+  client.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
+    const existingAuth = config.headers?.Authorization ?? config.headers?.authorization;
+    if (existingAuth) {
+      return config;
+    }
+    const token = await resolveAuthToken();
+    if (token && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  });
+
+  client.interceptors.response.use(
+    (response) => response,
+    (error: AxiosError<ApiError>) => {
+      const normalized: ApiError = error.response?.data ?? {
+        error: {
+          code: error.code ?? "network_error",
+          message: error.message || "Erreur réseau.",
+        },
+      };
+      return Promise.reject({
+        ...normalized,
+        status: error.response?.status ?? 0,
+        isAxiosError: true,
+      });
+    },
+  );
+}
 
 api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   const existingAuth = config.headers?.Authorization ?? config.headers?.authorization;

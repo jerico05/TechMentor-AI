@@ -1,13 +1,32 @@
 "use client";
 
-import { FileText, Github, Settings, UserCircle } from "lucide-react";
+import dynamic from "next/dynamic";
+import { FileText, Github, Loader2, Settings, UserCircle } from "lucide-react";
 import * as React from "react";
 
-import { CVSettingsPanel } from "@/components/settings/cv-settings-panel";
-import { GitHubSettingsPanel } from "@/components/settings/github-settings-panel";
-import { ProfileSettingsPanel } from "@/components/settings/profile-settings-panel";
 import { Motion } from "@/components/ui/motion";
 import { cn } from "@/lib/utils";
+
+const ProfileSettingsPanel = dynamic(
+  () => import("@/components/settings/profile-settings-panel").then((m) => m.ProfileSettingsPanel),
+  { loading: () => <PanelSkeleton /> },
+);
+const CVSettingsPanel = dynamic(
+  () => import("@/components/settings/cv-settings-panel").then((m) => m.CVSettingsPanel),
+  { loading: () => <PanelSkeleton /> },
+);
+const GitHubSettingsPanel = dynamic(
+  () => import("@/components/settings/github-settings-panel").then((m) => m.GitHubSettingsPanel),
+  { loading: () => <PanelSkeleton /> },
+);
+
+function PanelSkeleton() {
+  return (
+    <div className="flex justify-center py-12">
+      <Loader2 className="h-7 w-7 animate-spin text-primary" />
+    </div>
+  );
+}
 
 const SECTIONS = [
   { id: "profile", label: "Profil", icon: UserCircle },

@@ -9,6 +9,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
+from urllib.parse import urlparse
 
 from pydantic import AnyHttpUrl, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -139,6 +140,23 @@ class Settings(BaseSettings):
         return self
 
     # ---- Helpers ------------------------------------------------------
+    @property
+    def database_host(self) -> str:
+        """Hostname of the active database (for logs and health checks)."""
+        url = (self.database_url or "").replace("postgresql+asyncpg://", "postgresql://")
+        url = url.replace("postgresql+psycopg://", "postgresql://")
+        host = urlparse(url).hostname
+        return host or self.postgres_host
+
+    @property
+    def uses_neon_database(self) -> bool:
+        return "neon.tech" in (self.database_url or "")
+
+    @property
+    def uses_docker_postgres(self) -> bool:
+        host = self.database_host
+        return host in {"postgres", "127.0.0.1", "localhost"}
+
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"

@@ -1,12 +1,10 @@
-import { api } from "@/services/api";
+import { api, apiSlow } from "@/services/api";
 import type { ProjectRecommendation } from "@/types";
 
 export type { ProjectRecommendation, RecommendedProject, ProjectDataSource } from "@/types";
 
 export async function fetchProjectRecommendations(): Promise<ProjectRecommendation> {
-  const { data } = await api.get<ProjectRecommendation>("/projects/recommendations", {
-    timeout: 120_000,
-  });
+  const { data } = await apiSlow.get<ProjectRecommendation>("/projects/recommendations");
   return data;
 }
 

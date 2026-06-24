@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import AsyncIterator
 
@@ -36,6 +37,42 @@ Format de réponse : texte simple uniquement.
 - N'utilise JAMAIS de markdown : pas de *, **, #, ##, ###, backticks, ni titres markdown.
 - Pour structurer, utilise des numéros (1. 2. 3.) et des paragraphes courts.
 - Pas de listes à puces avec des symboles *, utilise des phrases ou des numéros."""
+
+
+async def _load_cv_snapshot(user_id: int) -> CVFile | None:
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(CVFile)
+            .where(CVFile.user_id == user_id)
+            .order_by(CVFile.created_at.desc())
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
+
+async def _load_github_snapshot(user_id: int) -> GitHubAnalysis | None:
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(select(GitHubAnalysis).where(GitHubAnalysis.user_id == user_id))
+        return result.scalar_one_or_none()
+
+
+async def _load_roadmap_snapshot(user_id: int) -> Roadmap | None:
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(Roadmap)
+            .where(Roadmap.user_id == user_id, Roadmap.status == "active")
+            .order_by(Roadmap.created_at.desc())
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
+
+async def _load_analysis_snapshot(user_id: int) -> tuple:
+    async with AsyncSessionLocal() as db:
+        service = AnalysisService(db)
+        latest = await service.get_latest(user_id)
+        skills = await service.get_user_skills(user_id)
+        return latest, skills
 
 
 class MentorService:
@@ -207,29 +244,13 @@ class MentorService:
 
         user_id = user.id
 
-        cv_result = await self.db.execute(
-            select(CVFile)
-            .where(CVFile.user_id == user_id)
-            .order_by(CVFile.created_at.desc())
-            .limit(1)
+        cv_row, gh_row, roadmap, analysis_snapshot = await asyncio.gather(
+            _load_cv_snapshot(user_id),
+            _load_github_snapshot(user_id),
+            _load_roadmap_snapshot(user_id),
+            _load_analysis_snapshot(user_id),
         )
-        cv_row = cv_result.scalar_one_or_none()
-
-        gh_result = await self.db.execute(
-            select(GitHubAnalysis).where(GitHubAnalysis.user_id == user_id)
-        )
-        gh_row = gh_result.scalar_one_or_none()
-
-        roadmap_result = await self.db.execute(
-            select(Roadmap)
-            .where(Roadmap.user_id == user_id, Roadmap.status == "active")
-            .order_by(Roadmap.created_at.desc())
-            .limit(1)
-        )
-        roadmap = roadmap_result.scalar_one_or_none()
-
-        latest = await self.analysis.get_latest(user_id)
-        skills = await self.analysis.get_user_skills(user_id)
+        latest, skills = analysis_snapshot
 
         if cv_row and cv_row.extracted_text:
             lines.append(f"CV (extrait) : {cv_row.extracted_text[:800]}...")

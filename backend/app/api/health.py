@@ -38,9 +38,12 @@ async def readiness() -> JSONResponse:
     overall = "ok"
 
     # ---- Database ----
+    checks["database_host"] = settings.database_host
     try:
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
+            user_count = await conn.execute(text("SELECT COUNT(*) FROM users"))
+            checks["database_users"] = int(user_count.scalar_one())
         checks["database"] = "ok"
     except Exception as exc:  # noqa: BLE001
         checks["database"] = f"error: {type(exc).__name__}"

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -21,6 +22,7 @@ import {
   formatAuthError,
   registerWithEmail,
 } from "@/services/auth";
+import { prefetchDashboardSummary } from "@/services/dashboard";
 import { useAuthStore } from "@/store/auth-store";
 
 const registerSchema = z
@@ -40,6 +42,7 @@ type RegisterForm = z.infer<typeof registerSchema>;
 
 export default function RegisterPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const setUser = useAuthStore((s) => s.setUser);
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
@@ -64,6 +67,7 @@ export default function RegisterPage() {
       );
       setSessionCookie();
       setUser(user);
+      prefetchDashboardSummary(queryClient);
       router.replace("/dashboard");
     } catch (err) {
       setError(formatAuthError(err, "Inscription impossible. Réessayez."));
@@ -80,6 +84,7 @@ export default function RegisterPage() {
         provider === "google" ? await loginWithGoogle() : await loginWithGithub();
       setSessionCookie();
       setUser(result.user);
+      prefetchDashboardSummary(queryClient);
       router.replace("/dashboard");
     } catch (err) {
       setError(formatAuthError(err, "Inscription OAuth impossible."));

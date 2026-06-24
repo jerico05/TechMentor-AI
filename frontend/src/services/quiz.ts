@@ -1,10 +1,10 @@
-import { api } from "@/services/api";
+import { api, apiSlow } from "@/services/api";
 import type { QuizAttempt, QuizGenerateResponse, QuizQuestion, QuizSubmitResponse } from "@/types";
 
 export type { QuizAttempt, QuizGenerateResponse, QuizQuestion, QuizSubmitResponse } from "@/types";
 
 export async function generateQuiz(): Promise<QuizGenerateResponse> {
-  const { data } = await api.post<QuizGenerateResponse>("/quiz/generate", {}, { timeout: 90_000 });
+  const { data } = await apiSlow.post<QuizGenerateResponse>("/quiz/generate", {});
   return data;
 }
 
