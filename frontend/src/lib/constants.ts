@@ -1,6 +1,30 @@
 export const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME ?? "TechMentor AI";
 
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+/**
+ * Base URL for browser API calls. Must stay empty in production (Vercel HTTPS).
+ * The app calls same-origin `/api/v1/...`; the server proxies via BACKEND_URL.
+ * Never set an `http://` EC2 URL here - browsers block mixed content.
+ */
+function resolveApiBaseUrl(): string {
+  const configured = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").trim();
+  if (!configured) return "";
+
+  if (typeof window !== "undefined") {
+    const isHttpsPage = window.location.protocol === "https:";
+    const isInsecureApi = configured.startsWith("http://");
+    if (isHttpsPage && isInsecureApi) {
+      console.warn(
+        "[TechMentor] NEXT_PUBLIC_API_BASE_URL=http://... est ignore en HTTPS. " +
+          "Laissez cette variable vide sur Vercel et utilisez BACKEND_URL.",
+      );
+      return "";
+    }
+  }
+
+  return configured.replace(/\/$/, "");
+}
+
+export const API_BASE_URL = resolveApiBaseUrl();
 
 /** Map an API error code to a user-friendly French message. */
 export const ERROR_MESSAGES: Record<string, string> = {
