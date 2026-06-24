@@ -38,20 +38,30 @@ if [[ "$has_firebase_file" == true ]]; then
   COMPOSE_FILES+=(-f docker-compose.prod.firebase-file.yml)
 fi
 
-echo ">> Build et demarrage (production)..."
-docker compose --env-file backend/.env "${COMPOSE_FILES[@]}" up -d --build
+COMPOSE=(docker compose --env-file backend/.env "${COMPOSE_FILES[@]}")
 
-echo ">> Attente sante API..."
-for _ in $(seq 1 30); do
-  if curl -fsS "http://127.0.0.1:${BACKEND_PORT:-8000}/health/ready" >/dev/null 2>&1; then
+# BACKEND_PORT peut etre defini dans backend/.env
+if [[ -z "${BACKEND_PORT:-}" ]] && grep -qE '^BACKEND_PORT=' backend/.env; then
+  BACKEND_PORT="$(grep -E '^BACKEND_PORT=' backend/.env | tail -1 | cut -d= -f2- | tr -d ' \"')"
+fi
+BACKEND_PORT="${BACKEND_PORT:-8000}"
+
+echo ">> Build et demarrage (production)..."
+"${COMPOSE[@]}" up -d --build
+
+echo ">> Attente sante API (port ${BACKEND_PORT})..."
+for _ in $(seq 1 60); do
+  if curl -fsS "http://127.0.0.1:${BACKEND_PORT}/health/ready" >/dev/null 2>&1; then
     echo ">> Backend pret."
-    curl -s "http://127.0.0.1:${BACKEND_PORT:-8000}/health/ready" | head -c 400
+    curl -s "http://127.0.0.1:${BACKEND_PORT}/health/ready" | head -c 400
     echo
     exit 0
   fi
   sleep 2
 done
 
-echo ">> Le backend ne repond pas encore. Logs:"
-docker compose "${COMPOSE_FILES[@]}" logs --tail=80 backend
+echo ">> Le backend ne repond pas encore. Etat des conteneurs:"
+"${COMPOSE[@]}" ps
+echo ">> Logs backend:"
+"${COMPOSE[@]}" logs --tail=80 backend
 exit 1
