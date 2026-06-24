@@ -152,6 +152,9 @@ export function formatAuthError(err: unknown, fallback: string): string {
   }
 
   if (e.message?.includes("Network Error") || e.status === 0) {
+    if (typeof window !== "undefined" && window.location.hostname !== "localhost") {
+      return "Impossible de joindre le backend. Vérifiez BACKEND_URL sur Vercel et le proxy /api.";
+    }
     return "Impossible de joindre le backend. Lancez-le sur http://localhost:8000";
   }
 
