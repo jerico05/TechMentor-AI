@@ -76,22 +76,65 @@ if [[ -z "${BACKEND_PORT:-}" ]] && grep -qE '^BACKEND_PORT=' backend/.env; then
 fi
 BACKEND_PORT="${BACKEND_PORT:-8000}"
 
-echo ">> Build et demarrage (production)..."
-"${COMPOSE[@]}" up -d --build
+_ts() { date +%H:%M:%S; }
 
-echo ">> Attente sante API (port ${BACKEND_PORT})..."
-for _ in $(seq 1 60); do
-  if curl -fsS "http://127.0.0.1:${BACKEND_PORT}/health/ready" >/dev/null 2>&1; then
-    echo ">> Backend pret."
-    curl -s "http://127.0.0.1:${BACKEND_PORT}/health/ready" | head -c 400
-    echo
-    exit 0
+mem_mb="$(awk '/^MemTotal:/ {print int($2/1024)}' /proc/meminfo 2>/dev/null || echo 0)"
+swap_mb="$(awk '/^SwapTotal:/ {print int($2/1024)}' /proc/meminfo 2>/dev/null || echo 0)"
+if [[ "$mem_mb" -gt 0 && "$mem_mb" -lt 2048 && "$swap_mb" -lt 512 ]]; then
+  echo ">> Attention: ${mem_mb} Mo RAM, peu ou pas de swap."
+  echo "   Le build Docker peut sembler bloque 10-20 min ou echouer (OOM)."
+  echo "   Si ca plante: sudo bash deploy/ec2/ensure-swap.sh puis relancez."
+fi
+
+export DOCKER_BUILDKIT=1
+export BUILDKIT_PROGRESS=plain
+export COMPOSE_PARALLEL_LIMIT="${COMPOSE_PARALLEL_LIMIT:-2}"
+
+echo ">> [$( _ts )] Pull images redis + qdrant..."
+"${COMPOSE[@]}" pull redis qdrant
+
+if [[ "${SKIP_BUILD:-0}" == "1" ]]; then
+  echo ">> [$( _ts )] SKIP_BUILD=1: pas de rebuild backend."
+else
+  echo ">> [$( _ts )] Build image backend (5-20 min sur petit EC2, logs ci-dessous)..."
+  "${COMPOSE[@]}" build --progress=plain backend
+fi
+
+echo ">> [$( _ts )] Demarrage des conteneurs..."
+"${COMPOSE[@]}" up -d --no-build
+
+echo ">> [$( _ts )] Attente API (migrations Alembic + uvicorn, jusqu'a 5 min)..."
+live=false
+for i in $(seq 1 150); do
+  if curl -fsS --max-time 5 "http://127.0.0.1:${BACKEND_PORT}/health" >/dev/null 2>&1; then
+    live=true
+    echo ">> [$( _ts )] API live (/health OK)."
+    break
+  fi
+  if (( i % 15 == 0 )); then
+    echo ">>   ... en attente ($((i * 2))s) - etat conteneurs:"
+    "${COMPOSE[@]}" ps
   fi
   sleep 2
 done
 
-echo ">> Le backend ne repond pas encore. Etat des conteneurs:"
+if [[ "$live" != true ]]; then
+  echo ">> Le backend ne repond pas. Etat des conteneurs:"
+  "${COMPOSE[@]}" ps
+  echo ">> Logs backend:"
+  "${COMPOSE[@]}" logs --tail=120 backend
+  exit 1
+fi
+
+echo ">> [$( _ts )] Verification readiness (DB + Redis + Qdrant)..."
+if curl -fsS --max-time 15 "http://127.0.0.1:${BACKEND_PORT}/health/ready" | head -c 500; then
+  echo
+  echo ">> Backend pret."
+  exit 0
+fi
+
+echo
+echo ">> /health OK mais /health/ready lent ou en echec (RAG optionnel)."
+echo ">> Verifiez: curl http://127.0.0.1:${BACKEND_PORT}/health/rag"
 "${COMPOSE[@]}" ps
-echo ">> Logs backend:"
-"${COMPOSE[@]}" logs --tail=80 backend
-exit 1
+exit 0

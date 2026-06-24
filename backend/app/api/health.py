@@ -42,26 +42,17 @@ async def readiness() -> JSONResponse:
     try:
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
-            user_count = await conn.execute(text("SELECT COUNT(*) FROM users"))
-            checks["database_users"] = int(user_count.scalar_one())
         checks["database"] = "ok"
     except Exception as exc:  # noqa: BLE001
         checks["database"] = f"error: {type(exc).__name__}"
         overall = "degraded"
 
-    # ---- Redis (optional in dev) ----
+    # ---- Redis + Qdrant (fast probes only; RAG detail on GET /health/rag) ----
     checks["redis"] = await _check_redis()
     checks["qdrant"] = await _check_qdrant()
 
-    from app.rag.status import get_rag_status
-
-    rag = await get_rag_status()
-    checks["rag"] = str(rag.get("ready", "unknown"))
-    checks["rag_embeddings"] = str(rag.get("embeddings", "unknown"))
-    checks["rag_points"] = int(rag.get("points", 0))
-
     code = status.HTTP_200_OK if overall == "ok" else status.HTTP_503_SERVICE_UNAVAILABLE
-    return JSONResponse(status_code=code, content={"status": overall, "checks": checks, "rag": rag})
+    return JSONResponse(status_code=code, content={"status": overall, "checks": checks})
 
 
 async def _check_qdrant() -> str:
