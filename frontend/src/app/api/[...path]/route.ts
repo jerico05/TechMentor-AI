@@ -17,7 +17,10 @@ const HOP_BY_HOP = new Set([
 ]);
 
 function backendBase(): string {
-  const base = process.env.BACKEND_URL?.trim() || "http://localhost:8000";
+  let base = process.env.BACKEND_URL?.trim() || "http://localhost:8000";
+  if (!/^https?:\/\//i.test(base)) {
+    base = `http://${base}`;
+  }
   return base.replace(/\/$/, "");
 }
 
