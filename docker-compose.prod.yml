@@ -11,9 +11,10 @@
 #   - Base locale Docker : profile local-db + POSTGRES_PASSWORD dans backend/.env
 #
 # Lancer :
-#   bash deploy/ec2/start.sh
-#   # ou :
-#   docker compose --env-file backend/.env -f docker-compose.prod.yml up -d --build
+#   bash deploy/ec2/start-fast.sh     # rapide (image GHCR, recommande EC2)
+#   bash deploy/ec2/start.sh          # idem par defaut (USE_REGISTRY=1)
+#   BUILD_LOCAL=1 bash deploy/ec2/start.sh   # compile sur EC2 (lent)
+#   SKIP_PULL=1 SKIP_BUILD=1 bash deploy/ec2/start.sh  # redemarrage instant si images locales
 #
 # Verifier :
 #   curl http://localhost:8000/health/ready

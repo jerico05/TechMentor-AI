@@ -90,15 +90,80 @@ export DOCKER_BUILDKIT=1
 export BUILDKIT_PROGRESS=plain
 export COMPOSE_PARALLEL_LIMIT="${COMPOSE_PARALLEL_LIMIT:-2}"
 
-echo ">> [$( _ts )] Pull images redis + qdrant..."
-"${COMPOSE[@]}" pull redis qdrant
+REDIS_IMG="redis:7-alpine"
+QDRANT_IMG="qdrant/qdrant:v1.12.4"
+BACKEND_LOCAL="techmentor-backend:prod"
+BACKEND_REGISTRY="${BACKEND_IMAGE:-ghcr.io/jerico05/techmentor-ai-backend:main}"
 
-if [[ "${SKIP_BUILD:-0}" == "1" ]]; then
-  echo ">> [$( _ts )] SKIP_BUILD=1: pas de rebuild backend."
-else
-  echo ">> [$( _ts )] Build image backend (5-20 min sur petit EC2, logs ci-dessous)..."
+image_present() {
+  docker image inspect "$1" >/dev/null 2>&1
+}
+
+pull_with_timeout() {
+  local img=$1
+  local timeout_sec=${2:-90}
+  if [[ "${SKIP_PULL:-0}" == "1" ]]; then
+    if image_present "$img"; then
+      echo ">>   $img en cache (SKIP_PULL=1)."
+      return 0
+    fi
+    echo ">>   SKIP_PULL=1 mais $img absent."
+    return 1
+  fi
+  if [[ "${SKIP_PULL_IF_PRESENT:-1}" == "1" ]] && image_present "$img"; then
+    echo ">>   $img deja en cache, skip pull."
+    return 0
+  fi
+  echo ">>   pull $img (max ${timeout_sec}s)..."
+  if timeout "$timeout_sec" docker pull "$img"; then
+    return 0
+  fi
+  if image_present "$img"; then
+    echo ">>   pull lent/timeout, utilisation du cache local pour $img."
+    return 0
+  fi
+  echo ">>   echec pull $img."
+  return 1
+}
+
+resolve_backend() {
+  if [[ "${BUILD_LOCAL:-0}" == "1" ]]; then
+    echo ">> [$( _ts )] BUILD_LOCAL=1: compilation sur EC2 (lent)."
+    "${COMPOSE[@]}" build --progress=plain backend
+    return 0
+  fi
+
+  if [[ "${USE_REGISTRY:-1}" == "1" ]]; then
+    echo ">> [$( _ts )] Mode rapide: backend depuis GHCR (pas de build EC2)."
+    if pull_with_timeout "$BACKEND_REGISTRY" 300; then
+      docker tag "$BACKEND_REGISTRY" "$BACKEND_LOCAL" 2>/dev/null || true
+      return 0
+    fi
+    if image_present "$BACKEND_LOCAL"; then
+      echo ">>   GHCR indisponible, image locale $BACKEND_LOCAL."
+      return 0
+    fi
+    echo ">>   Image GHCR introuvable. Options:"
+    echo "      1) Push sur main puis attendez le workflow GitHub Actions"
+    echo "      2) GITHUB_TOKEN=ghp_xxx bash deploy/ec2/login-ghcr.sh"
+    echo "      3) BUILD_LOCAL=1 bash deploy/ec2/start.sh (lent)"
+    return 1
+  fi
+
+  if [[ "${SKIP_BUILD:-0}" == "1" ]] && image_present "$BACKEND_LOCAL"; then
+    echo ">> [$( _ts )] SKIP_BUILD=1: image locale."
+    return 0
+  fi
+
+  echo ">> [$( _ts )] Build image backend sur EC2 (5-20 min)..."
   "${COMPOSE[@]}" build --progress=plain backend
-fi
+}
+
+echo ">> [$( _ts )] Images infra (redis, qdrant)..."
+pull_with_timeout "$REDIS_IMG" 60 || true
+pull_with_timeout "$QDRANT_IMG" 120 || true
+
+resolve_backend
 
 echo ">> [$( _ts )] Demarrage des conteneurs..."
 "${COMPOSE[@]}" up -d --no-build
