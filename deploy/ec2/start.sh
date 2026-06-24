@@ -26,13 +26,20 @@ if [[ "$has_firebase_file" == false && "$has_firebase_json" == false ]]; then
   exit 1
 fi
 
+# Docker Compose lit ${POSTGRES_PASSWORD} depuis --env-file, pas depuis env_file des services.
+if ! grep -qE '^POSTGRES_PASSWORD=.+' backend/.env; then
+  echo "Erreur: POSTGRES_PASSWORD manquant dans backend/.env"
+  echo "  nano backend/.env"
+  exit 1
+fi
+
 COMPOSE_FILES=(-f docker-compose.prod.yml)
 if [[ "$has_firebase_file" == true ]]; then
   COMPOSE_FILES+=(-f docker-compose.prod.firebase-file.yml)
 fi
 
 echo ">> Build et demarrage (production)..."
-docker compose "${COMPOSE_FILES[@]}" up -d --build
+docker compose --env-file backend/.env "${COMPOSE_FILES[@]}" up -d --build
 
 echo ">> Attente sante API..."
 for _ in $(seq 1 30); do

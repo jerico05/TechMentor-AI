@@ -9,7 +9,9 @@
 #   - Firebase : FIREBASE_CREDENTIALS_JSON dans .env OU fichier local (voir deploy/ec2/)
 #
 # Lancer :
-#   docker compose -f docker-compose.prod.yml up -d --build
+#   bash deploy/ec2/start.sh
+#   # ou :
+#   docker compose --env-file backend/.env -f docker-compose.prod.yml up -d --build
 #
 # Verifier :
 #   curl http://localhost:8000/health/ready
