@@ -22,6 +22,13 @@ async def liveness() -> dict[str, str]:
     return {"status": "ok", "service": settings.app_name, "env": settings.app_env}
 
 
+@router.get("/rag", summary="RAG stack status (Qdrant + embeddings)")
+async def rag_status() -> dict:
+    from app.rag.status import get_rag_status
+
+    return await get_rag_status()
+
+
 @router.get("/ready", summary="Readiness probe")
 async def readiness() -> JSONResponse:
     """Check infra dependencies. Returns 503 if any critical dep is down."""
@@ -43,8 +50,15 @@ async def readiness() -> JSONResponse:
     checks["redis"] = await _check_redis()
     checks["qdrant"] = await _check_qdrant()
 
+    from app.rag.status import get_rag_status
+
+    rag = await get_rag_status()
+    checks["rag"] = str(rag.get("ready", "unknown"))
+    checks["rag_embeddings"] = str(rag.get("embeddings", "unknown"))
+    checks["rag_points"] = int(rag.get("points", 0))
+
     code = status.HTTP_200_OK if overall == "ok" else status.HTTP_503_SERVICE_UNAVAILABLE
-    return JSONResponse(status_code=code, content={"status": overall, "checks": checks})
+    return JSONResponse(status_code=code, content={"status": overall, "checks": checks, "rag": rag})
 
 
 async def _check_qdrant() -> str:

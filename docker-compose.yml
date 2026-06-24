@@ -96,7 +96,7 @@ services:
       QDRANT_URL: http://127.0.0.1:6333
       FIREBASE_CREDENTIALS_PATH: /app/firebase-service-account.json
       RUN_MIGRATIONS: "1"
-      SKIP_RAG_INGEST: "1"
+      SKIP_RAG_INGEST: "0"
     volumes:
       - ./backend:/app
       - backend_uploads:/app/uploads

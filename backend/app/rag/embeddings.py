@@ -32,3 +32,14 @@ def embed_query(text: str) -> list[float]:
 async def embed_query_async(text: str) -> list[float]:
     """Non-blocking wrapper for use inside async handlers."""
     return await asyncio.to_thread(embed_query, text)
+
+
+async def verify_embeddings() -> str:
+    """Call the embedding API once; returns 'ok' or an error message."""
+    try:
+        vector = await embed_query_async("techmentor rag health check")
+        if len(vector) != settings.embedding_dimension:
+            return f"unexpected_dimension:{len(vector)}"
+        return "ok"
+    except Exception as exc:  # noqa: BLE001
+        return f"error: {type(exc).__name__}: {exc}"

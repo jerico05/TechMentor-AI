@@ -1,0 +1,170 @@
+# TechMentor AI - stack backend production (EC2 / VPS)
+#
+# Services : PostgreSQL, Redis, Qdrant, FastAPI, Celery worker
+# Pas de frontend, pas de hot-reload, reseau Docker interne.
+#
+# Prerequis sur le serveur :
+#   - Docker Engine + Compose v2
+#   - backend/.env (copie de backend/.env.production.example)
+#   - backend/firebase-service-account.json
+#
+# Lancer :
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Verifier :
+#   curl http://localhost:8000/health/ready
+#   curl http://localhost:8000/health/rag
+#
+# Logs :
+#   docker compose -f docker-compose.prod.yml logs -f backend worker
+
+name: techmentor-prod
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: tm-prod-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-techmentor}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Definir POSTGRES_PASSWORD dans backend/.env}
+      POSTGRES_DB: ${POSTGRES_DB:-techmentor}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - tm_internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-techmentor} -d ${POSTGRES_DB:-techmentor}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: tm-prod-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - tm_internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    container_name: tm-prod-qdrant
+    restart: unless-stopped
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - tm_internal
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: techmentor-backend:prod
+    container_name: tm-prod-backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-techmentor}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-techmentor}
+      SYNC_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-techmentor}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-techmentor}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      QDRANT_URL: http://qdrant:6333
+      FIREBASE_CREDENTIALS_PATH: /app/firebase-service-account.json
+      RUN_MIGRATIONS: "1"
+      SKIP_RAG_INGEST: "0"
+      CV_USE_CELERY: "true"
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - backend_uploads:/app/uploads
+      - ${FIREBASE_CREDENTIALS_FILE:-./backend/firebase-service-account.json}:/app/firebase-service-account.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    networks:
+      - tm_internal
+    command:
+      [
+        "uvicorn",
+        "app.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+        "--workers",
+        "2",
+        "--proxy-headers",
+        "--forwarded-allow-ips",
+        "*",
+      ]
+
+  worker:
+    image: techmentor-backend:prod
+    container_name: tm-prod-worker
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-techmentor}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-techmentor}
+      SYNC_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-techmentor}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-techmentor}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      QDRANT_URL: http://qdrant:6333
+      FIREBASE_CREDENTIALS_PATH: /app/firebase-service-account.json
+      RUN_MIGRATIONS: "0"
+      SKIP_RAG_INGEST: "1"
+      CV_USE_CELERY: "true"
+    volumes:
+      - backend_uploads:/app/uploads
+      - ${FIREBASE_CREDENTIALS_FILE:-./backend/firebase-service-account.json}:/app/firebase-service-account.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    networks:
+      - tm_internal
+    command:
+      [
+        "celery",
+        "-A",
+        "app.workers.celery_app",
+        "worker",
+        "--loglevel=info",
+        "--concurrency=2",
+      ]
+
+networks:
+  tm_internal:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  qdrant_data:
+  backend_uploads:

@@ -23,6 +23,7 @@ from app.core.logging import configure_logging, get_logger
 from app.core.firebase import warmup_firebase
 from app.database.session import AsyncSessionLocal
 from app.data.seed_careers import seed_career_catalog
+from app.rag.embeddings import verify_embeddings
 from app.rag.ingest import ingest_knowledge_base
 
 logger = get_logger(__name__)
@@ -44,7 +45,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await seed_career_catalog(db)
     await asyncio.to_thread(warmup_firebase)
     if os.environ.get("SKIP_RAG_INGEST") != "1":
-        await asyncio.to_thread(ingest_knowledge_base)
+        try:
+            indexed = await asyncio.to_thread(ingest_knowledge_base)
+            if indexed:
+                logger.info("rag.startup.ingested", points=indexed)
+        except Exception as exc:
+            logger.error("rag.startup.ingest_failed", error=str(exc))
+    embed_status = await verify_embeddings()
+    if embed_status == "ok":
+        logger.info("rag.startup.embeddings_ok")
+    else:
+        logger.error("rag.startup.embeddings_unavailable", detail=embed_status)
     yield
     logger.info("app.stopping")
 

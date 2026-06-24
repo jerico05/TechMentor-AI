@@ -49,7 +49,8 @@ def ingest_knowledge_base(force: bool = False) -> int:
     try:
         client = get_qdrant_client()
         if not force and collection_point_count(client) > 0:
-            logger.info("rag.ingest.skipped", reason="collection_not_empty")
+            count = collection_point_count(client)
+            logger.info("rag.ingest.skipped", reason="collection_not_empty", points=count)
             return 0
 
         docs = load_knowledge_documents()
@@ -57,12 +58,11 @@ def ingest_knowledge_base(force: bool = False) -> int:
             logger.warning("rag.ingest.empty")
             return 0
 
-        embeddings = embed_query
         points: list[qmodels.PointStruct] = []
         idx = 0
         for doc in docs:
             for chunk in _chunk_text(doc["content"]):
-                vector = embeddings(f"{doc['title']}\n{chunk}")
+                vector = embed_query(f"{doc['title']}\n{chunk}")
                 points.append(
                     qmodels.PointStruct(
                         id=idx,
@@ -81,5 +81,5 @@ def ingest_knowledge_base(force: bool = False) -> int:
         logger.info("rag.ingest.done", points=len(points))
         return len(points)
     except Exception as exc:
-        logger.warning("rag.ingest.failed", error=str(exc))
-        return 0
+        logger.exception("rag.ingest.failed", error=str(exc))
+        raise
