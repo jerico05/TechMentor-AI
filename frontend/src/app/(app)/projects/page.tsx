@@ -42,7 +42,15 @@ const DIFFICULTY_LABELS: Record<string, string> = {
   avance: "Avancé",
 };
 
-const TRACK_STYLES: Record<string, { label: string; icon: typeof Rocket; accent: string }> = {
+type TrackStyle = { label: string; icon: typeof Rocket; accent: string };
+
+const DEFAULT_TRACK_STYLE: TrackStyle = {
+  label: "Développement",
+  icon: Rocket,
+  accent: "from-blue-500/15 to-indigo-500/10",
+};
+
+const TRACK_STYLES: Record<string, TrackStyle> = {
   ai: { label: "IA / GenAI", icon: BrainCircuit, accent: "from-violet-500/20 to-fuchsia-500/10" },
   ml: { label: "ML / MLOps", icon: BrainCircuit, accent: "from-indigo-500/15 to-violet-500/10" },
   data: { label: "Data", icon: Database, accent: "from-emerald-500/15 to-teal-500/10" },
@@ -56,7 +64,7 @@ const TRACK_STYLES: Record<string, { label: string; icon: typeof Rocket; accent:
   qa: { label: "QA / Tests", icon: TestTube2, accent: "from-lime-500/15 to-green-500/10" },
   product: { label: "Product", icon: Target, accent: "from-pink-500/15 to-rose-500/10" },
   design: { label: "UX / UI", icon: Target, accent: "from-violet-500/15 to-purple-500/10" },
-  dev: { label: "Développement", icon: Rocket, accent: "from-blue-500/15 to-indigo-500/10" },
+  dev: DEFAULT_TRACK_STYLE,
 };
 
 function ProjectCard({
@@ -72,7 +80,7 @@ function ProjectCard({
   onToggle: () => void;
   toggling: boolean;
 }) {
-  const track = TRACK_STYLES[project.track] ?? TRACK_STYLES.dev;
+  const track = TRACK_STYLES[project.track] ?? DEFAULT_TRACK_STYLE;
   const TrackIcon = track.icon;
   const difficulty = DIFFICULTY_LABELS[project.difficulty] ?? project.difficulty;
   const dataSources = project.data_sources ?? [];
