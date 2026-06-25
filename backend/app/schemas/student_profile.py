@@ -20,6 +20,8 @@ class StudentProfileUpsert(BaseModel):
     career_goal: str | None = Field(default=None, max_length=255)
     career_path_id: int | None = None
     github_url: AnyHttpUrl | None = None
+    linkedin_url: AnyHttpUrl | None = None
+    portfolio_url: AnyHttpUrl | None = None
     bio: str | None = Field(default=None, max_length=2000)
 
 
@@ -32,4 +34,6 @@ class StudentProfileOut(ORMModel):
     career_goal: str | None
     career_path_id: int | None
     github_url: str | None
+    linkedin_url: str | None
+    portfolio_url: str | None
     bio: str | None

@@ -43,6 +43,8 @@ class StudentProfile(BaseModel):
         nullable=True,
     )
     github_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    linkedin_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    portfolio_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     bio: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # ---- Relationships ------------------------------------------------

@@ -64,6 +64,7 @@ def _build_prompt(
     score: int,
     owned_skills: list[str],
     missing_skills: list[str],
+    existing_projects: list[str] | None = None,
 ) -> str:
     guidance = get_career_guidance(career_slug)
     track = guidance.get("track", "dev")
@@ -71,6 +72,7 @@ def _build_prompt(
     focus = ", ".join(missing_skills[:6]) or "compétences fondamentales du métier"
     owned = ", ".join(owned_skills[:8]) or "peu de compétences déclarées"
     description = career_description or "Non renseignée"
+    done = ", ".join(existing_projects[:10]) if existing_projects else "aucun projet enregistré"
 
     return f"""Tu es un mentor carrière tech senior. Propose exactement 3 projets portfolio ultra-spécifiques au métier « {career_name} ».
 
@@ -81,6 +83,7 @@ Profil étudiant :
 - Score de préparation métier : {score}/100 (écart de compétences déclarées, pas le niveau d'expérience).
 - Compétences acquises : {owned}
 - Compétences à renforcer : {focus}
+- Projets déjà réalisés (ne pas reproposer) : {done}
 - Catégorie projet (track) : {track}
 
 Règles obligatoires :
@@ -443,7 +446,9 @@ class ProjectService:
         level = normalize_level(latest.level)
         project_difficulty = level_to_project_difficulty(level)
 
-        projects = await self._generate_with_llm(latest, career.name, career.slug, career.description or "", level)
+        projects = await self._generate_with_llm(
+            latest, career.name, career.slug, career.description or "", level, user_id
+        )
         if not projects:
             logger.info("projects.fallback", user_id=user_id, career=career.slug, level=level)
             projects = _fallback_projects(career.slug, project_difficulty)
@@ -511,6 +516,21 @@ class ProjectService:
         await self.analysis.refresh_experience_level(user_id)
         return await self.list_completions(user_id)
 
+    async def _existing_project_titles(self, user_id: int) -> list[str]:
+        from sqlalchemy import select
+
+        from app.models.user_portfolio_project import UserPortfolioProject
+
+        rows = await self.db.scalars(
+            select(UserPortfolioProject.title)
+            .where(
+                UserPortfolioProject.user_id == user_id,
+                UserPortfolioProject.status == "completed",
+            )
+            .order_by(UserPortfolioProject.created_at.desc())
+        )
+        return list(rows.all())
+
     async def _generate_with_llm(
         self,
         latest: AnalysisHistory,
@@ -518,10 +538,12 @@ class ProjectService:
         career_slug: str,
         career_description: str,
         experience_level: str,
+        user_id: int,
     ) -> list[dict]:
         if not settings.mistral_api_key or settings.mistral_api_key == "change-me":
             return []
 
+        existing = await self._existing_project_titles(user_id)
         prompt = _build_prompt(
             career_name=career_name,
             career_slug=career_slug,
@@ -530,6 +552,7 @@ class ProjectService:
             score=latest.score,
             owned_skills=latest.owned_skills,
             missing_skills=latest.missing_skills,
+            existing_projects=existing,
         )
 
         try:

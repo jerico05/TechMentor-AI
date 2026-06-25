@@ -6,9 +6,9 @@ LEVEL_ENTRY = "entry"
 LEVEL_INTERMEDIAIRE = "intermediaire"
 LEVEL_SENIOR = "senior"
 
-# Portfolio project count thresholds
-PROJECTS_INTERMEDIAIRE_MIN = 8
-PROJECTS_SENIOR_MIN = 15
+# Portfolio project count thresholds (extracted project links in settings)
+PROJECTS_INTERMEDIAIRE_MIN = 3
+PROJECTS_SENIOR_MIN = 8
 
 LEGACY_LEVEL_MAP: dict[str, str] = {
     "debutant": LEVEL_ENTRY,
@@ -75,9 +75,9 @@ def level_to_project_difficulty(level: str | None) -> str:
 def compute_experience_level(*, projects_completed: int = 0) -> str:
     """Derive entry / intermediaire / senior from portfolio projects completed.
 
-  - Entry level (junior) : moins de 8 projets
-  - Intermédiaire : 8 à 14 projets
-  - Senior : 15 projets ou plus
+  - Entry level (junior) : moins de 3 projets
+  - Intermédiaire : 3 à 7 projets
+  - Senior : 8 projets ou plus
 
     Skill-gap score is intentionally NOT used here.
     """
@@ -104,7 +104,7 @@ def experience_level_reason(
             f"Niveau {label} (junior) : aucun projet portfolio validé. "
             f"Intermédiaire à partir de {PROJECTS_INTERMEDIAIRE_MIN} projets, "
             f"senior à partir de {PROJECTS_SENIOR_MIN}. "
-            "Marquez vos projets réalisés sur la page Projets."
+            "Marquez vos projets dans Paramètres > Portfolio (lien par projet)."
         )
     if projects_completed < PROJECTS_INTERMEDIAIRE_MIN:
         remaining = PROJECTS_INTERMEDIAIRE_MIN - projects_completed

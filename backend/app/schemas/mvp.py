@@ -153,3 +153,44 @@ class QuizSubmitResponse(BaseModel):
 
 class GitHubAnalyzeRequest(BaseModel):
     github_url: str | None = None
+
+
+class LinkedInAnalyzeRequest(BaseModel):
+    linkedin_url: str | None = None
+    profile_text: str | None = Field(default=None, max_length=8000)
+
+
+class LinkedInAnalysisOut(ORMModel):
+    id: int
+    profile_url: str
+    headline: str | None
+    summary: str | None
+    experiences: list | None
+    education: list | None
+    skills: list | None
+    status: str
+
+
+class PortfolioProjectOut(ORMModel):
+    id: int
+    url: str
+    title: str
+    summary: str | None
+    stack: list[str] | None
+    source: str
+    status: str
+    created_at: datetime
+
+
+class PortfolioProjectAddRequest(BaseModel):
+    url: str = Field(min_length=8, max_length=1000)
+
+
+class PortfolioProjectsOut(BaseModel):
+    projects: list[PortfolioProjectOut]
+    portfolio_url: str | None = None
+    total_completed: int = 0
+
+
+class PortfolioUrlRequest(BaseModel):
+    portfolio_url: str | None = None

@@ -21,7 +21,8 @@ export function computeProfileProgress(profile: StudentProfile | null): number {
     profile.university,
     profile.department,
     profile.career_goal,
-    profile.github_url,
+    profile.linkedin_url,
+    profile.portfolio_url,
     profile.bio,
   ];
   const filled = fields.filter(Boolean).length;

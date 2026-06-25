@@ -94,8 +94,8 @@ export default function AnalysisPage() {
             <p className="text-xl font-bold text-[hsl(var(--navy))]">{levelLabel(result.level)}</p>
             {result.projects_completed !== undefined && (
               <p className="mt-1 text-xs text-muted-foreground">
-                {result.projects_completed} projet{result.projects_completed !== 1 ? "s" : ""} portfolio validé
-                {result.projects_completed !== 1 ? "s" : ""}
+                {result.projects_completed} projet{result.projects_completed !== 1 ? "s" : ""} enregistré
+                {result.projects_completed !== 1 ? "s" : ""} · ajoutez-en dans Paramètres → Projets
               </p>
             )}
             {result.level_reason && (

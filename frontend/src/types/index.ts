@@ -35,6 +35,8 @@ export interface StudentProfile {
   career_goal: string | null;
   career_path_id: number | null;
   github_url: string | null;
+  linkedin_url: string | null;
+  portfolio_url: string | null;
   bio: string | null;
 }
 
@@ -45,6 +47,8 @@ export interface StudentProfileInput {
   career_goal?: string | null;
   career_path_id?: number | null;
   github_url?: string | null;
+  linkedin_url?: string | null;
+  portfolio_url?: string | null;
   bio?: string | null;
 }
 
@@ -86,6 +90,47 @@ export interface GitHubAnalysis {
   languages: Record<string, number> | null;
   technologies: string[] | null;
   status: ProcessingStatus | string;
+}
+
+export interface LinkedInExperience {
+  title?: string;
+  company?: string;
+  duration?: string;
+  description?: string;
+}
+
+export interface LinkedInEducation {
+  school?: string;
+  degree?: string;
+  duration?: string;
+}
+
+export interface LinkedInAnalysis {
+  id: number;
+  profile_url: string;
+  headline: string | null;
+  summary: string | null;
+  experiences: LinkedInExperience[] | null;
+  education: LinkedInEducation[] | null;
+  skills: string[] | null;
+  status: ProcessingStatus | string;
+}
+
+export interface PortfolioProject {
+  id: number;
+  url: string;
+  title: string;
+  summary: string | null;
+  stack: string[] | null;
+  source: string;
+  status: ProcessingStatus | string;
+  created_at?: string;
+}
+
+export interface PortfolioProjectsResponse {
+  projects: PortfolioProject[];
+  portfolio_url: string | null;
+  total_completed: number;
 }
 
 export interface AnalysisResult {

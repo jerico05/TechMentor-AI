@@ -29,7 +29,6 @@ const schema = z.object({
   academic_level: z.enum(["licence1", "licence2", "licence3", "master1", "master2", "other"]),
   career_goal: z.string().optional(),
   career_path_id: z.coerce.number().optional().nullable(),
-  github_url: z.string().url("URL invalide").optional().or(z.literal("")),
   bio: z.string().max(2000).optional(),
 });
 
@@ -63,7 +62,6 @@ export function ProfileSettingsPanel() {
       academic_level: profile?.academic_level ?? "licence3",
       career_goal: profile?.career_goal ?? "",
       career_path_id: profile?.career_path_id ?? undefined,
-      github_url: profile?.github_url ?? "",
       bio: profile?.bio ?? "",
     },
   });
@@ -113,7 +111,6 @@ export function ProfileSettingsPanel() {
         onSubmit={handleSubmit((data) =>
           mutation.mutate({
             ...data,
-            github_url: data.github_url || null,
             university: data.university || null,
             department: data.department || null,
             career_goal: data.career_goal || null,
@@ -173,14 +170,6 @@ export function ProfileSettingsPanel() {
         <div className="space-y-1.5">
           <Label htmlFor="career_goal">Objectif carrière</Label>
           <Input id="career_goal" {...register("career_goal")} placeholder="Ex. Développeur fullstack" />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="github_url">URL GitHub (profil)</Label>
-          <Input id="github_url" {...register("github_url")} placeholder="https://github.com/vous" />
-          {errors.github_url && (
-            <p className="text-xs text-destructive">{errors.github_url.message}</p>
-          )}
         </div>
 
         <div className="space-y-1.5">

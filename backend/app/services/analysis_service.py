@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 from app.core.exceptions import NotFoundError, ValidationError
 from app.models.analysis import AnalysisHistory
 from app.models.skill import CareerPath, CareerPathSkill, Skill, UserSkill
+from app.models.user_portfolio_project import UserPortfolioProject
 from app.models.user_project import UserProjectCompletion
 from app.repositories.student_profile_repository import StudentProfileRepository
 from app.utils.user_level import compute_experience_level, normalize_level
@@ -101,12 +102,20 @@ class AnalysisService:
         return [r[0] for r in rows]
 
     async def count_completed_projects(self, user_id: int) -> int:
-        result = await self.db.scalar(
+        portfolio_count = await self.db.scalar(
+            select(func.count())
+            .select_from(UserPortfolioProject)
+            .where(
+                UserPortfolioProject.user_id == user_id,
+                UserPortfolioProject.status == "completed",
+            )
+        )
+        legacy_count = await self.db.scalar(
             select(func.count())
             .select_from(UserProjectCompletion)
             .where(UserProjectCompletion.user_id == user_id)
         )
-        return int(result or 0)
+        return int(portfolio_count or 0) + int(legacy_count or 0)
 
     async def _experience_context(self, user_id: int) -> dict:
         profile = await self.profile_repo.get_for_user(user_id)

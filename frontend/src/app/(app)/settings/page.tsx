@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { FileText, Github, Loader2, Settings, UserCircle } from "lucide-react";
+import { Briefcase, FileText, FolderKanban, Github, Loader2, Settings, UserCircle } from "lucide-react";
 import * as React from "react";
 
 import { Motion } from "@/components/ui/motion";
@@ -19,6 +19,14 @@ const GitHubSettingsPanel = dynamic(
   () => import("@/components/settings/github-settings-panel").then((m) => m.GitHubSettingsPanel),
   { loading: () => <PanelSkeleton /> },
 );
+const LinkedInSettingsPanel = dynamic(
+  () => import("@/components/settings/linkedin-settings-panel").then((m) => m.LinkedInSettingsPanel),
+  { loading: () => <PanelSkeleton /> },
+);
+const PortfolioSettingsPanel = dynamic(
+  () => import("@/components/settings/portfolio-settings-panel").then((m) => m.PortfolioSettingsPanel),
+  { loading: () => <PanelSkeleton /> },
+);
 
 function PanelSkeleton() {
   return (
@@ -32,6 +40,8 @@ const SECTIONS = [
   { id: "profile", label: "Profil", icon: UserCircle },
   { id: "cv", label: "CV", icon: FileText },
   { id: "github", label: "GitHub", icon: Github },
+  { id: "linkedin", label: "LinkedIn", icon: Briefcase },
+  { id: "portfolio", label: "Projets", icon: FolderKanban },
 ] as const;
 
 type SectionId = (typeof SECTIONS)[number]["id"];
@@ -84,7 +94,7 @@ export default function SettingsPage() {
           <div>
             <h1 className="text-3xl font-extrabold tracking-tight text-[hsl(var(--navy))]">Paramètres</h1>
             <p className="text-muted-foreground">
-              Gérez votre profil, votre CV et votre GitHub au même endroit.
+              Profil, CV, GitHub, LinkedIn et projets portfolio au même endroit.
             </p>
           </div>
         </div>
@@ -136,6 +146,22 @@ export default function SettingsPage() {
             GitHub
           </h2>
           <GitHubSettingsPanel />
+        </section>
+
+        <section id="settings-linkedin" className="scroll-mt-28">
+          <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-[hsl(var(--navy))]">
+            <Briefcase className="h-5 w-5 text-primary" />
+            LinkedIn
+          </h2>
+          <LinkedInSettingsPanel />
+        </section>
+
+        <section id="settings-portfolio" className="scroll-mt-28">
+          <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-[hsl(var(--navy))]">
+            <FolderKanban className="h-5 w-5 text-primary" />
+            Mes projets
+          </h2>
+          <PortfolioSettingsPanel />
         </section>
       </div>
     </div>

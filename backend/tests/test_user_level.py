@@ -8,17 +8,17 @@ from app.utils.user_level import (
 )
 
 
-def test_entry_below_eight_projects():
+def test_entry_below_three_projects():
     assert compute_experience_level(projects_completed=0) == "entry"
-    assert compute_experience_level(projects_completed=7) == "entry"
+    assert compute_experience_level(projects_completed=2) == "entry"
 
 
-def test_intermediaire_from_eight_projects():
+def test_intermediaire_from_three_projects():
     assert compute_experience_level(projects_completed=PROJECTS_INTERMEDIAIRE_MIN) == "intermediaire"
-    assert compute_experience_level(projects_completed=14) == "intermediaire"
+    assert compute_experience_level(projects_completed=7) == "intermediaire"
 
 
-def test_senior_from_fifteen_projects():
+def test_senior_from_eight_projects():
     assert compute_experience_level(projects_completed=PROJECTS_SENIOR_MIN) == "senior"
     assert compute_experience_level(projects_completed=20) == "senior"
 

@@ -7,7 +7,8 @@ from app.models.github_analysis import GitHubAnalysis
 from app.models.skill import CareerPath, CareerPathSkill, Skill, UserSkill
 from app.models.student_profile import StudentProfile
 from app.models.user import User
-from app.models.user_project import UserProjectCompletion
+from app.models.linkedin_analysis import LinkedInAnalysis
+from app.models.user_portfolio_project import UserPortfolioProject
 
 __all__ = [
     "User",
@@ -25,4 +26,6 @@ __all__ = [
     "ChatSession",
     "ChatMessage",
     "UserProjectCompletion",
+    "UserPortfolioProject",
+    "LinkedInAnalysis",
 ]

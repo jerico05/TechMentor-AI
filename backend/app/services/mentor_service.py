@@ -17,6 +17,8 @@ from app.models.analysis import Roadmap
 from app.models.chat import ChatMessage, ChatSession
 from app.models.cv_file import CVFile
 from app.models.github_analysis import GitHubAnalysis
+from app.models.linkedin_analysis import LinkedInAnalysis
+from app.models.user_portfolio_project import UserPortfolioProject
 from app.models.user import User
 from app.rag.retriever import retrieve_context_async
 from app.repositories.student_profile_repository import StudentProfileRepository
@@ -48,6 +50,26 @@ async def _load_cv_snapshot(user_id: int) -> CVFile | None:
             .limit(1)
         )
         return result.scalar_one_or_none()
+
+
+async def _load_linkedin_snapshot(user_id: int) -> LinkedInAnalysis | None:
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(select(LinkedInAnalysis).where(LinkedInAnalysis.user_id == user_id))
+        return result.scalar_one_or_none()
+
+
+async def _load_portfolio_snapshot(user_id: int) -> list[UserPortfolioProject]:
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(UserPortfolioProject)
+            .where(
+                UserPortfolioProject.user_id == user_id,
+                UserPortfolioProject.status == "completed",
+            )
+            .order_by(UserPortfolioProject.created_at.desc())
+            .limit(12)
+        )
+        return list(result.scalars().all())
 
 
 async def _load_github_snapshot(user_id: int) -> GitHubAnalysis | None:
@@ -239,14 +261,20 @@ class MentorService:
                 lines.append(f"Objectif carrière : {profile.career_goal}")
             if profile.github_url:
                 lines.append(f"GitHub : {profile.github_url}")
+            if profile.linkedin_url:
+                lines.append(f"LinkedIn : {profile.linkedin_url}")
+            if profile.portfolio_url:
+                lines.append(f"Portfolio : {profile.portfolio_url}")
             if profile.bio:
                 lines.append(f"Bio : {profile.bio}")
 
         user_id = user.id
 
-        cv_row, gh_row, roadmap, analysis_snapshot = await asyncio.gather(
+        cv_row, gh_row, li_row, portfolio_rows, roadmap, analysis_snapshot = await asyncio.gather(
             _load_cv_snapshot(user_id),
             _load_github_snapshot(user_id),
+            _load_linkedin_snapshot(user_id),
+            _load_portfolio_snapshot(user_id),
             _load_roadmap_snapshot(user_id),
             _load_analysis_snapshot(user_id),
         )
@@ -258,6 +286,36 @@ class MentorService:
         if gh_row:
             langs = ", ".join((gh_row.languages or {}).keys())
             lines.append(f"GitHub @{gh_row.username} : {gh_row.repo_count} repos, langages: {langs}")
+
+        if li_row and li_row.status == "completed":
+            if li_row.headline:
+                lines.append(f"LinkedIn headline : {li_row.headline}")
+            if li_row.summary:
+                lines.append(f"Parcours LinkedIn : {li_row.summary[:500]}")
+            if li_row.experiences:
+                exp_lines = []
+                for exp in li_row.experiences[:4]:
+                    if isinstance(exp, dict):
+                        title = exp.get("title", "")
+                        company = exp.get("company", "")
+                        duration = exp.get("duration", "")
+                        exp_lines.append(f"{title} @ {company} ({duration})".strip())
+                if exp_lines:
+                    lines.append(f"Expériences : {'; '.join(exp_lines)}")
+            if li_row.skills:
+                lines.append(f"Compétences LinkedIn : {', '.join(li_row.skills[:15])}")
+
+        if portfolio_rows:
+            proj_bits = []
+            for p in portfolio_rows[:8]:
+                stack = ", ".join(p.stack or [])
+                bit = f"{p.title}"
+                if stack:
+                    bit += f" [{stack}]"
+                if p.summary:
+                    bit += f" - {p.summary[:120]}"
+                proj_bits.append(bit)
+            lines.append(f"Projets portfolio ({len(portfolio_rows)}) : {' | '.join(proj_bits)}")
 
         if latest:
             exp_level = level_label_fr(normalize_level(latest.level))
