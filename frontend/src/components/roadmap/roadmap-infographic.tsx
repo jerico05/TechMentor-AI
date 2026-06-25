@@ -237,14 +237,22 @@ function AnimatedRoadSvg({
   animate: boolean;
   reducedMotion: boolean;
 }) {
-  const drawStyle = (delayMs: number): React.CSSProperties =>
-    reducedMotion
-      ? { strokeDasharray: pathLength || 1, strokeDashoffset: 0 }
-      : {
-          strokeDasharray: pathLength || 1,
-          strokeDashoffset: animate ? 0 : pathLength || 1,
-          transition: `stroke-dashoffset 2.1s cubic-bezier(0.22, 1, 0.36, 1) ${delayMs}ms`,
-        };
+  const uid = React.useId().replace(/:/g, "");
+  const roadVisible = pathLength > 0;
+  const drawStyle = (delayMs: number): React.CSSProperties => {
+    if (!roadVisible) {
+      return { opacity: 0 };
+    }
+    if (reducedMotion || !animate) {
+      return { strokeDasharray: pathLength, strokeDashoffset: 0, opacity: 1 };
+    }
+    return {
+      strokeDasharray: pathLength,
+      strokeDashoffset: 0,
+      opacity: 1,
+      transition: `stroke-dashoffset 1.8s cubic-bezier(0.22, 1, 0.36, 1) ${delayMs}ms`,
+    };
+  };
 
   return (
     <svg
@@ -254,10 +262,10 @@ function AnimatedRoadSvg({
       aria-hidden
     >
       <defs>
-        <filter id="roadmap-road-shadow" x="-15%" y="-15%" width="130%" height="130%">
+        <filter id={`roadmap-road-shadow-${uid}`} x="-15%" y="-15%" width="130%" height="130%">
           <feDropShadow dx="0" dy="8" stdDeviation="10" floodColor="#0f2744" floodOpacity="0.28" />
         </filter>
-        <linearGradient id="roadmap-navy-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+        <linearGradient id={`roadmap-navy-gradient-${uid}`} x1="0%" y1="0%" x2="100%" y2="0%">
           <stop offset="0%" stopColor="#1a3358" />
           <stop offset="50%" stopColor="#1e3d6e" />
           <stop offset="100%" stopColor="#254a82" />
@@ -271,17 +279,17 @@ function AnimatedRoadSvg({
         strokeWidth="62"
         strokeLinecap="round"
         strokeLinejoin="round"
-        filter="url(#roadmap-road-shadow)"
+        filter={`url(#roadmap-road-shadow-${uid})`}
         style={drawStyle(0)}
       />
       <path
         d={pathD}
         fill="none"
-        stroke="url(#roadmap-navy-gradient)"
+        stroke={`url(#roadmap-navy-gradient-${uid})`}
         strokeWidth="48"
         strokeLinecap="round"
         strokeLinejoin="round"
-        style={drawStyle(120)}
+        style={drawStyle(80)}
       />
       <path
         d={pathD}
@@ -290,11 +298,8 @@ function AnimatedRoadSvg({
         strokeWidth="3"
         strokeDasharray="12 14"
         strokeLinecap="round"
-        opacity={animate || reducedMotion ? 0.95 : 0}
-        style={{
-          ...drawStyle(1600),
-          transition: `opacity 0.6s ease ${animate || reducedMotion ? "1.6s" : "0s"}, stroke-dashoffset 2.1s cubic-bezier(0.22, 1, 0.36, 1) 1.6s`,
-        }}
+        opacity={roadVisible ? 0.95 : 0}
+        style={drawStyle(120)}
       />
     </svg>
   );
@@ -415,9 +420,9 @@ function StepCard({
   return (
     <div
       className={cn(
-        "flex flex-col items-center px-2 opacity-0 motion-reduce:opacity-100",
+        "flex flex-col items-center px-2",
         compact ? "w-[10.5rem] shrink-0" : "",
-        animate && "motion-safe:animate-card-rise",
+        animate ? "opacity-0 motion-safe:animate-card-rise" : "opacity-100",
       )}
       style={{ animationDelay: animate ? `${delay}ms` : undefined }}
     >
@@ -543,7 +548,7 @@ export function RoadmapInfographic({ months, summary, className, isPreview }: Ro
   const { pathRef, anchors, pathLength, ready } = useRoadAnchors(steps.length, geometry);
   const { ref: viewportRef, inView } = useInView(0.15);
   const reducedMotion = useReducedMotion();
-  const roadAnimate = (inView && pathLength > 0) || reducedMotion;
+  const roadAnimate = pathLength > 0 || reducedMotion;
   const contentAnimate = (inView && ready) || reducedMotion;
   const roadAspect = geometry.viewBox.width / (ROAD_VIEWBOX_HEIGHT * 0.72);
 
@@ -592,10 +597,10 @@ export function RoadmapInfographic({ months, summary, className, isPreview }: Ro
       <div className="relative mx-auto hidden max-w-[min(100%,72rem)] md:block">
         <div
           className={cn(
-            "relative w-full min-h-[12rem] transition-[aspect-ratio] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]",
+            "relative w-full min-h-[14rem] transition-[aspect-ratio] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]",
             isCompact && "overflow-x-auto pb-2 [scrollbar-width:thin]",
           )}
-          style={{ aspectRatio: isCompact ? undefined : `${roadAspect}` }}
+          style={{ aspectRatio: isCompact ? undefined : `${roadAspect}`, minHeight: "14rem" }}
         >
           <div
             className={cn("relative w-full", isCompact && "min-w-max")}
