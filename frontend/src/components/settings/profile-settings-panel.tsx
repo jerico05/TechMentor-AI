@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Save, Trash2 } from "lucide-react";
+import { Loader2, Save } from "lucide-react";
 
 import { CareerSelect } from "@/components/careers/career-select";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,6 @@ import { fetchCareers } from "@/services/careers";
 import { invalidateDashboardSummary } from "@/services/dashboard";
 import {
   computeProfileProgress,
-  deleteMyProfile,
   fetchMyProfile,
   upsertMyProfile,
 } from "@/services/profile";
@@ -68,14 +67,6 @@ export function ProfileSettingsPanel() {
 
   const mutation = useMutation({
     mutationFn: upsertMyProfile,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["profile", "me"] });
-      invalidateDashboardSummary(queryClient);
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: deleteMyProfile,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile", "me"] });
       invalidateDashboardSummary(queryClient);
@@ -199,39 +190,6 @@ export function ProfileSettingsPanel() {
           Enregistrer le profil
         </Button>
       </form>
-
-      {profile ? (
-        <div className="glass-card border border-destructive/20 p-6">
-          <h3 className="font-semibold text-destructive">Zone de danger</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Supprime votre profil étudiant. Votre compte reste actif.
-          </p>
-          {deleteMutation.isError && (
-            <p className="mt-2 text-sm text-destructive">Impossible de supprimer le profil.</p>
-          )}
-          {deleteMutation.isSuccess && (
-            <p className="mt-2 text-sm font-medium text-green-600">Profil supprimé.</p>
-          )}
-          <Button
-            type="button"
-            variant="outline"
-            disabled={deleteMutation.isPending}
-            className="mt-4 rounded-2xl border-destructive/40 text-destructive hover:bg-destructive/10"
-            onClick={() => {
-              if (window.confirm("Supprimer votre profil étudiant ? Cette action est irréversible.")) {
-                deleteMutation.mutate();
-              }
-            }}
-          >
-            {deleteMutation.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Trash2 className="mr-2 h-4 w-4" />
-            )}
-            Supprimer mon profil
-          </Button>
-        </div>
-      ) : null}
     </div>
   );
 }
