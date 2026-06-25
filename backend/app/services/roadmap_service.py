@@ -15,7 +15,8 @@ from app.models.analysis import Roadmap
 from app.services.analysis_service import AnalysisService
 from app.services.llm_client import get_llm_client
 from app.rag.retriever import retrieve_for_roadmap_async
-from app.utils.roadmap_courses import sanitize_roadmap_courses
+from app.data.roadmap_course_catalog import format_catalog_for_prompt
+from app.utils.roadmap_courses import sanitize_roadmap_courses, validate_and_enrich_roadmap_courses
 from app.utils.roadmap_duration import (
     normalize_roadmap_duration,
     suggestion_reason,
@@ -81,6 +82,7 @@ class RoadmapService:
         missing_count = len(latest.missing_skills)
         months = normalize_roadmap_duration(duration_months, latest.level, missing_count)
         rag_context = await retrieve_for_roadmap_async(career.name, latest.missing_skills)
+        catalog_context = format_catalog_for_prompt(career.slug, latest.missing_skills)
         level_slug = normalize_level(latest.level)
         level_guidance = ROADMAP_LEVEL_GUIDANCE.get(level_slug, "")
         level_display = level_label_fr(latest.level)
@@ -98,6 +100,8 @@ Profil étudiant :
 
 {rag_context}
 
+{catalog_context}
+
 Réponds UNIQUEMENT en JSON avec ce format:
 {{
   "months": {_months_json_template(months)},
@@ -112,11 +116,10 @@ Règles :
 
 Cours recommandés (OBLIGATOIRE pour chaque mois) :
 - Inclure 1 à 2 cours dans "courses" par mois (maximum 2).
-- Chaque cours : title, platform (nom du site ou source : Coursera, Udemy, Cisco Networking Academy, freeCodeCamp, OpenClassrooms, edX, YouTube, MDN, documentation officielle, etc. — toute plateforme pertinente sur le web).
-- url : lien HTTPS réel vers une page de cours, formation ou ressource pédagogique existante (pas d'URL inventée).
-- type : "gratuit", "payant" ou "freemium".
-- note : une courte phrase expliquant pourquoi ce cours pour ce mois.
-- Varier les plateformes sur la roadmap ; chercher les meilleures ressources du web, pas seulement les MOOC classiques.
+- Chaque cours : title, platform, url, type ("gratuit", "payant" ou "freemium"), note.
+- Utilise EN PRIORITÉ les URLs de la section "Sources verifiées" ci-dessus, sans les modifier.
+- N'invente JAMAIS d'URL : pas de liens fictifs, pas de slugs devinés sur Coursera/Udemy/YouTube.
+- Si aucune source verifiee ne correspond exactement au mois, choisis la ressource la plus proche dans la liste verifiee.
 - Adapter chaque cours au métier {career.name}, au niveau {level_display} et aux compétences du mois."""
 
         if not settings.mistral_api_key or settings.mistral_api_key == "change-me":
@@ -147,6 +150,7 @@ Cours recommandés (OBLIGATOIRE pour chaque mois) :
 
         if isinstance(content, dict):
             content = sanitize_roadmap_courses(content)
+            content = await validate_and_enrich_roadmap_courses(content, career.slug)
 
         existing_rows = (
             await self.db.execute(

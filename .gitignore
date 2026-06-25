@@ -12,6 +12,11 @@ nul
 .env
 .env.local
 .env.*.local
+.env.production
+.env.ec2
+backend/.env
+backend/.env.ec2
+frontend/.env.production
 *.pem
 *.key
 firebase-service-account.json

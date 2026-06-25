@@ -11,7 +11,8 @@ import type { RoadmapMonth } from "@/types";
 
 export const ROAD_VIEWBOX_HEIGHT = 520;
 
-const ROAD_Y_LEVELS = [310, 155, 310, 455, 295, 440] as const;
+const ROAD_Y_CENTER = 260;
+const ROAD_Y_AMPLITUDE = 145;
 
 export const ROAD_STROKE = {
   navy: "#1e3d6e",
@@ -41,21 +42,27 @@ export interface RoadGeometry {
 /** Build a winding road whose horizontal span grows with the step count. */
 export function buildDynamicRoadPath(stepCount: number): RoadGeometry {
   const steps = Math.max(1, Math.min(12, stepCount));
-  const marginX = 60;
-  const segmentWidth = steps <= 3 ? 150 : steps <= 6 ? 140 : 118;
+  const marginX = 72;
+  const segmentWidth = steps <= 3 ? 168 : steps <= 6 ? 152 : steps <= 9 ? 132 : 112;
   const width = marginX * 2 + segmentWidth * steps;
   const height = ROAD_VIEWBOX_HEIGHT;
 
+  const yAt = (index: number) => {
+    if (steps === 1) return ROAD_Y_CENTER;
+    const phase = (index / steps) * Math.PI * 2;
+    return ROAD_Y_CENTER + Math.sin(phase) * ROAD_Y_AMPLITUDE;
+  };
+
   let x = marginX;
-  let y: number = ROAD_Y_LEVELS[0];
+  let y = yAt(0);
   let d = `M ${x} ${y}`;
 
   for (let i = 0; i < steps; i++) {
     const nx = marginX + segmentWidth * (i + 1);
-    const ny = ROAD_Y_LEVELS[(i + 1) % ROAD_Y_LEVELS.length]!;
-    const cp1x = x + segmentWidth * 0.38;
+    const ny = yAt(i + 1);
+    const cp1x = x + segmentWidth * 0.42;
     const cp1y = y;
-    const cp2x = nx - segmentWidth * 0.38;
+    const cp2x = nx - segmentWidth * 0.42;
     const cp2y = ny;
     d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${nx} ${ny}`;
     x = nx;
@@ -64,7 +71,8 @@ export function buildDynamicRoadPath(stepCount: number): RoadGeometry {
 
   const endX = width - marginX;
   if (x < endX - 8) {
-    d += ` C ${x + segmentWidth * 0.28} ${y}, ${endX - segmentWidth * 0.28} ${ROAD_Y_LEVELS[0]}, ${endX} ${ROAD_Y_LEVELS[0]}`;
+    const endY = yAt(steps);
+    d += ` C ${x + segmentWidth * 0.3} ${y}, ${endX - segmentWidth * 0.3} ${endY}, ${endX} ${endY}`;
   }
 
   return { pathD: d, viewBox: { width, height } };
@@ -144,7 +152,7 @@ export function computeRoadAnchors(
   const anchors: RoadAnchor[] = [];
 
   for (let i = 0; i < count; i++) {
-    const t = (i + 0.5) / count;
+    const t = count === 1 ? 0.5 : (i + 0.5) / count;
     const point = path.getPointAtLength(length * t);
     anchors.push(viewBoxToOverlayPercent(point, viewBox, containerAspect));
   }

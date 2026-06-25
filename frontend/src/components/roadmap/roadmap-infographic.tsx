@@ -195,17 +195,31 @@ function useRoadAnchors(count: number, geometry: RoadGeometry) {
       setPathLength(0);
       return;
     }
-    setPathLength(path.getTotalLength());
-    setAnchors(computeRoadAnchors(count, path, geometry.viewBox));
+    const length = path.getTotalLength();
+    setPathLength(length);
+    if (length > 0) {
+      setAnchors(computeRoadAnchors(count, path, geometry.viewBox));
+    } else {
+      setAnchors([]);
+    }
   }, [count, geometry.pathD, geometry.viewBox.width, geometry.viewBox.height]);
 
   React.useLayoutEffect(() => {
     measure();
+    const id = window.requestAnimationFrame(measure);
     window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
+    return () => {
+      window.cancelAnimationFrame(id);
+      window.removeEventListener("resize", measure);
+    };
   }, [measure]);
 
-  return { pathRef, anchors, pathLength, ready: anchors.length === count && count > 0 };
+  return {
+    pathRef,
+    anchors,
+    pathLength,
+    ready: anchors.length === count && count > 0 && pathLength > 0,
+  };
 }
 
 function AnimatedRoadSvg({
@@ -276,10 +290,10 @@ function AnimatedRoadSvg({
         strokeWidth="3"
         strokeDasharray="12 14"
         strokeLinecap="round"
-        opacity={animate ? 0.95 : 0}
+        opacity={animate || reducedMotion ? 0.95 : 0}
         style={{
           ...drawStyle(1600),
-          transition: `opacity 0.6s ease ${animate ? "1.6s" : "0s"}, stroke-dashoffset 2.1s cubic-bezier(0.22, 1, 0.36, 1) 1.6s`,
+          transition: `opacity 0.6s ease ${animate || reducedMotion ? "1.6s" : "0s"}, stroke-dashoffset 2.1s cubic-bezier(0.22, 1, 0.36, 1) 1.6s`,
         }}
       />
     </svg>
@@ -480,7 +494,7 @@ function MobileTimeline({
   isPreview?: boolean;
 }) {
   return (
-    <div className="space-y-4 xl:hidden">
+    <div className="space-y-4 md:hidden">
       {months.map((month, index) => {
         const theme = stepTheme(index);
         const Icon = theme.icon;
@@ -527,9 +541,10 @@ export function RoadmapInfographic({ months, summary, className, isPreview }: Ro
   const staggerMs = isCompact ? 120 : PIN_STAGGER_MS;
   const cardStaggerMs = isCompact ? 100 : CARD_STAGGER_MS;
   const { pathRef, anchors, pathLength, ready } = useRoadAnchors(steps.length, geometry);
-  const { ref: viewportRef, inView } = useInView(0.2);
+  const { ref: viewportRef, inView } = useInView(0.15);
   const reducedMotion = useReducedMotion();
-  const animate = (inView && ready) || reducedMotion;
+  const roadAnimate = (inView && pathLength > 0) || reducedMotion;
+  const contentAnimate = (inView && ready) || reducedMotion;
   const roadAspect = geometry.viewBox.width / (ROAD_VIEWBOX_HEIGHT * 0.72);
 
   return (
@@ -574,43 +589,51 @@ export function RoadmapInfographic({ months, summary, className, isPreview }: Ro
 
       <MobileTimeline months={steps} animate={inView} isPreview={isPreview} />
 
-      <div className="relative mx-auto hidden max-w-5xl xl:block">
+      <div className="relative mx-auto hidden max-w-[min(100%,72rem)] md:block">
         <div
-          className="relative w-full transition-[aspect-ratio] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]"
-          style={{ aspectRatio: `${roadAspect}` }}
+          className={cn(
+            "relative w-full min-h-[12rem] transition-[aspect-ratio] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]",
+            isCompact && "overflow-x-auto pb-2 [scrollbar-width:thin]",
+          )}
+          style={{ aspectRatio: isCompact ? undefined : `${roadAspect}` }}
         >
-          <AnimatedRoadSvg
-            pathRef={pathRef}
-            pathD={geometry.pathD}
-            viewBox={geometry.viewBox}
-            pathLength={pathLength}
-            animate={animate}
-            reducedMotion={reducedMotion}
-          />
-          {ready
-            ? steps.map((_, index) => (
-                <RoadPin
-                  key={steps[index]!.month}
-                  anchor={anchors[index]!}
-                  index={index}
-                  animate={animate}
-                  compact={isCompact}
-                  staggerMs={staggerMs}
-                />
-              ))
-            : null}
+          <div
+            className={cn("relative w-full", isCompact && "min-w-max")}
+            style={isCompact ? { width: `${Math.max(100, steps.length * 14)}%`, aspectRatio: `${roadAspect}` } : undefined}
+          >
+            <AnimatedRoadSvg
+              pathRef={pathRef}
+              pathD={geometry.pathD}
+              viewBox={geometry.viewBox}
+              pathLength={pathLength}
+              animate={roadAnimate}
+              reducedMotion={reducedMotion}
+            />
+            {ready
+              ? steps.map((_, index) => (
+                  <RoadPin
+                    key={steps[index]!.month}
+                    anchor={anchors[index]!}
+                    index={index}
+                    animate={contentAnimate}
+                    compact={isCompact}
+                    staggerMs={staggerMs}
+                  />
+                ))
+              : null}
+          </div>
         </div>
 
         {isCompact ? (
           <div className="relative mt-4 -mx-2 overflow-x-auto pb-2 [scrollbar-width:thin]">
-            <p className="mb-2 px-2 text-center text-[10px] text-[#7b8798] lg:hidden">Faites défiler pour voir toutes les étapes</p>
+            <p className="mb-2 px-2 text-center text-[10px] text-[#7b8798]">Faites défiler pour voir toutes les étapes</p>
             <div className="flex min-w-max gap-2 px-2">
               {steps.map((month, index) => (
                 <StepCard
                   key={month.month}
                   month={month}
                   index={index}
-                  animate={animate}
+                  animate={contentAnimate}
                   compact
                   staggerMs={cardStaggerMs}
                   isPreview={isPreview}
@@ -628,7 +651,7 @@ export function RoadmapInfographic({ months, summary, className, isPreview }: Ro
                 key={month.month}
                 month={month}
                 index={index}
-                animate={animate}
+                animate={contentAnimate}
                 staggerMs={cardStaggerMs}
                 isPreview={isPreview}
               />
