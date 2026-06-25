@@ -102,8 +102,6 @@ class Settings(BaseSettings):
     github_processing_stale_seconds: int = 20
     # Optional token to avoid GitHub API rate limits (public: 60 req/h).
     github_api_token: str | None = None
-    # Optional Proxycurl key for reliable LinkedIn profile extraction (https://nubela.co/proxycurl).
-    proxycurl_api_key: str | None = None
 
     # ---- CORS ----
     backend_cors_origins: list[AnyHttpUrl] = Field(

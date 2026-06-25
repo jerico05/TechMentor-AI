@@ -1,4 +1,4 @@
-"""Fetch LinkedIn profile content via API, PDF, or HTML metadata."""
+"""Fetch LinkedIn profile content from PDF or public HTML metadata."""
 
 from __future__ import annotations
 
@@ -7,12 +7,8 @@ import re
 
 import httpx
 
-from app.core.config import settings
-from app.core.logging import get_logger
 from app.utils.cv_parser import extract_text_from_bytes
-from app.utils.url_extract import html_to_text, normalize_url
-
-logger = get_logger(__name__)
+from app.utils.url_extract import html_to_text
 
 _BROWSER_HEADERS = {
     "User-Agent": (
@@ -77,95 +73,6 @@ def extract_linkedin_html_text(html: str) -> str:
     combined = "\n".join(parts)
     combined = re.sub(r"\n{3,}", "\n\n", combined)
     return combined.strip()
-
-
-def _format_proxycurl_date(value: dict | None) -> str:
-    if not value or not isinstance(value, dict):
-        return ""
-    parts = [str(value.get("month") or ""), str(value.get("year") or "")]
-    return "/".join(p for p in parts if p and p != "None")
-
-
-def _map_proxycurl_payload(data: dict, profile_url: str) -> dict:
-    experiences = []
-    for exp in data.get("experiences") or []:
-        if not isinstance(exp, dict):
-            continue
-        start = _format_proxycurl_date(exp.get("starts_at"))
-        end = _format_proxycurl_date(exp.get("ends_at")) or "présent"
-        duration = f"{start} - {end}".strip(" -") if start or end != "présent" else ""
-        experiences.append(
-            {
-                "title": str(exp.get("title") or "").strip(),
-                "company": str(exp.get("company") or "").strip(),
-                "duration": duration,
-                "description": str(exp.get("description") or "").strip()[:500],
-            }
-        )
-
-    education = []
-    for edu in data.get("education") or []:
-        if not isinstance(edu, dict):
-            continue
-        education.append(
-            {
-                "school": str(edu.get("school") or "").strip(),
-                "degree": str(edu.get("degree_name") or edu.get("field_of_study") or "").strip(),
-                "duration": _format_proxycurl_date(edu.get("starts_at")),
-            }
-        )
-
-    skills = [str(s).strip() for s in (data.get("skills") or []) if str(s).strip()][:30]
-    headline = str(data.get("headline") or "").strip() or None
-    summary = str(data.get("summary") or "").strip() or None
-    if not summary and headline:
-        summary = headline
-
-    raw_bits = [headline, summary]
-    for exp in experiences[:6]:
-        raw_bits.append(f"{exp.get('title')} @ {exp.get('company')} ({exp.get('duration')})")
-    raw_text = "\n".join(filter(None, raw_bits))[:4000]
-
-    return {
-        "profile_url": profile_url,
-        "headline": headline[:500] if headline else None,
-        "summary": summary[:2000] if summary else None,
-        "experiences": experiences[:12],
-        "education": education[:8],
-        "skills": skills,
-        "raw_text": raw_text,
-        "source": "proxycurl",
-    }
-
-
-async def fetch_via_proxycurl(profile_url: str) -> dict | None:
-    api_key = settings.proxycurl_api_key
-    if not api_key:
-        return None
-
-    try:
-        async with httpx.AsyncClient(timeout=35.0) as client:
-            response = await client.get(
-                "https://nubela.co/proxycurl/api/v2/linkedin",
-                params={"linkedin_profile_url": profile_url, "use_cache": "if-present"},
-                headers={"Authorization": f"Bearer {api_key}"},
-            )
-        if response.status_code == 404:
-            return None
-        if response.status_code == 401:
-            logger.warning("linkedin.proxycurl.unauthorized")
-            return None
-        response.raise_for_status()
-        payload = response.json()
-        if not isinstance(payload, dict):
-            return None
-        mapped = _map_proxycurl_payload(payload, profile_url)
-        if mapped.get("experiences") or mapped.get("summary") or mapped.get("skills"):
-            logger.info("linkedin.proxycurl.ok", url=profile_url)
-            return mapped
-    except Exception as exc:
-        logger.warning("linkedin.proxycurl.failed", error=str(exc))
-    return None
 
 
 async def fetch_linkedin_html(profile_url: str) -> str:

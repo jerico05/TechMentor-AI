@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any
 
 from app.core.config import settings
 from app.core.exceptions import ValidationError
@@ -13,7 +12,6 @@ from app.utils.linkedin_fetch import (
     extract_linkedin_html_text,
     extract_text_from_linkedin_pdf,
     fetch_linkedin_html,
-    fetch_via_proxycurl,
 )
 from app.utils.url_extract import extract_linkedin_slug, normalize_url
 
@@ -22,15 +20,7 @@ _LINKEDIN_PDF_HINT = (
 )
 
 
-async def _text_from_url_or_raise(normalized: str) -> dict[str, Any] | str:
-    proxycurl = await fetch_via_proxycurl(normalized)
-    if proxycurl:
-        raw = proxycurl.get("raw_text") or ""
-        if len(raw) >= 80 and (
-            proxycurl.get("experiences") or proxycurl.get("summary") or proxycurl.get("skills")
-        ):
-            return proxycurl
-
+async def _text_from_url_or_raise(normalized: str) -> str:
     try:
         html = await fetch_linkedin_html(normalized)
         extracted = extract_linkedin_html_text(html)
@@ -116,7 +106,5 @@ async def extract_linkedin_profile(
     if pasted:
         return await _parse_with_llm(pasted, normalized)
 
-    result = await _text_from_url_or_raise(normalized)
-    if isinstance(result, dict):
-        return result
-    return await _parse_with_llm(result, normalized)
+    text = await _text_from_url_or_raise(normalized)
+    return await _parse_with_llm(text, normalized)

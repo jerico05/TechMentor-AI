@@ -104,7 +104,7 @@ export function LinkedInSettingsPanel() {
             <p className="text-xs text-green-600">Fichier sélectionné : {pdfFile.name}</p>
           ) : (
             <p className="text-xs text-muted-foreground">
-              Sans PDF, nous essayons l&apos;extraction automatique (souvent bloquée par LinkedIn).
+              Sans PDF, une tentative d&apos;extraction depuis l&apos;URL est faite (souvent bloquée par LinkedIn).
             </p>
           )}
         </div>
@@ -163,10 +163,10 @@ export function LinkedInSettingsPanel() {
             <div className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
               <div>
-                <p className="font-medium">Extraction automatique impossible.</p>
+                <p className="font-medium">Extraction depuis l&apos;URL impossible.</p>
                 <p className="mt-1 text-destructive/80">
                   Utilisez l&apos;export PDF LinkedIn (Profil &gt; Plus &gt; Enregistrer au format PDF)
-                  puis relancez l&apos;analyse.
+                  ou collez le texte de votre profil, puis relancez l&apos;analyse.
                 </p>
               </div>
             </div>
