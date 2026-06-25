@@ -114,6 +114,17 @@ export interface RoadAnchor {
   y: number;
 }
 
+/** Fallback pin positions when SVG path length is not measured yet. */
+export function computeFallbackAnchors(count: number): RoadAnchor[] {
+  if (count <= 0) return [];
+  return Array.from({ length: count }, (_, i) => {
+    const t = count === 1 ? 0.5 : (i + 0.5) / count;
+    const phase = (t * count) / count * Math.PI * 2;
+    const yNorm = 0.5 + (Math.sin(phase) * ROAD_Y_AMPLITUDE) / ROAD_VIEWBOX_HEIGHT;
+    return { x: t * 100, y: yNorm * 100 };
+  });
+}
+
 /** Map SVG viewBox coordinates to % of the overlay container (accounts for letterboxing). */
 export function viewBoxToOverlayPercent(
   point: { x: number; y: number },

@@ -11,6 +11,7 @@ import {
   buildDynamicRoadPath,
   buildStepDescription,
   computeRoadAnchors,
+  computeFallbackAnchors,
   formatRoadmapStepNumber,
   type RoadAnchor,
   type RoadGeometry,
@@ -227,32 +228,14 @@ function AnimatedRoadSvg({
   pathD,
   viewBox,
   pathLength,
-  animate,
-  reducedMotion,
 }: {
   pathRef: React.RefObject<SVGPathElement>;
   pathD: string;
   viewBox: { width: number; height: number };
   pathLength: number;
-  animate: boolean;
-  reducedMotion: boolean;
 }) {
   const uid = React.useId().replace(/:/g, "");
-  const roadVisible = pathLength > 0;
-  const drawStyle = (delayMs: number): React.CSSProperties => {
-    if (!roadVisible) {
-      return { opacity: 0 };
-    }
-    if (reducedMotion || !animate) {
-      return { strokeDasharray: pathLength, strokeDashoffset: 0, opacity: 1 };
-    }
-    return {
-      strokeDasharray: pathLength,
-      strokeDashoffset: 0,
-      opacity: 1,
-      transition: `stroke-dashoffset 1.8s cubic-bezier(0.22, 1, 0.36, 1) ${delayMs}ms`,
-    };
-  };
+  const roadVisible = pathLength > 0 || pathD.length > 0;
 
   return (
     <svg
@@ -272,35 +255,36 @@ function AnimatedRoadSvg({
         </linearGradient>
       </defs>
       <path ref={pathRef} d={pathD} fill="none" stroke="transparent" strokeWidth="1" />
-      <path
-        d={pathD}
-        fill="none"
-        stroke={ROAD_STROKE.white}
-        strokeWidth="62"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        filter={`url(#roadmap-road-shadow-${uid})`}
-        style={drawStyle(0)}
-      />
-      <path
-        d={pathD}
-        fill="none"
-        stroke={`url(#roadmap-navy-gradient-${uid})`}
-        strokeWidth="48"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        style={drawStyle(80)}
-      />
-      <path
-        d={pathD}
-        fill="none"
-        stroke={ROAD_STROKE.dash}
-        strokeWidth="3"
-        strokeDasharray="12 14"
-        strokeLinecap="round"
-        opacity={roadVisible ? 0.95 : 0}
-        style={drawStyle(120)}
-      />
+      {roadVisible ? (
+        <>
+          <path
+            d={pathD}
+            fill="none"
+            stroke={ROAD_STROKE.white}
+            strokeWidth="62"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            filter={`url(#roadmap-road-shadow-${uid})`}
+          />
+          <path
+            d={pathD}
+            fill="none"
+            stroke={`url(#roadmap-navy-gradient-${uid})`}
+            strokeWidth="48"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d={pathD}
+            fill="none"
+            stroke={ROAD_STROKE.dash}
+            strokeWidth="3"
+            strokeDasharray="12 14"
+            strokeLinecap="round"
+            opacity={0.95}
+          />
+        </>
+      ) : null}
     </svg>
   );
 }
@@ -354,8 +338,8 @@ function RoadPin({
   return (
     <div
       className={cn(
-        "absolute z-20 opacity-0 motion-reduce:opacity-100",
-        animate && "motion-safe:animate-pin-drop",
+        "absolute z-20",
+        animate && "motion-safe:animate-pin-drop motion-reduce:opacity-100",
       )}
       style={{
         left: `${anchor.x}%`,
@@ -385,7 +369,7 @@ function StepConnector({
   return (
     <div
       className={cn(
-        "mb-2 w-px origin-top opacity-0 motion-reduce:opacity-100",
+        "mb-2 w-px origin-top",
         compact ? "h-5" : "h-8",
         animate && "motion-safe:animate-connector-grow",
       )}
@@ -422,13 +406,13 @@ function StepCard({
       className={cn(
         "flex flex-col items-center px-2",
         compact ? "w-[10.5rem] shrink-0" : "",
-        animate ? "opacity-0 motion-safe:animate-card-rise" : "opacity-100",
+        animate && "motion-safe:animate-card-rise",
       )}
       style={{ animationDelay: animate ? `${delay}ms` : undefined }}
     >
       <div
         className={cn(
-          "mb-2 flex items-center justify-center rounded-full font-bold text-white shadow-lg opacity-0 motion-reduce:opacity-100",
+          "mb-2 flex items-center justify-center rounded-full font-bold text-white shadow-lg",
           compact ? "h-7 w-7 text-xs" : "h-9 w-9 text-sm",
           animate && "motion-safe:animate-badge-pop",
         )}
@@ -507,7 +491,7 @@ function MobileTimeline({
           <div
             key={month.month}
             className={cn(
-              "flex gap-4 rounded-2xl border border-white/60 bg-white/90 p-4 shadow-md opacity-0 backdrop-blur-sm",
+              "flex gap-4 rounded-2xl border border-white/60 bg-white/90 p-4 shadow-md backdrop-blur-sm",
               animate && "animate-slide-up",
             )}
             style={{
@@ -548,8 +532,8 @@ export function RoadmapInfographic({ months, summary, className, isPreview }: Ro
   const { pathRef, anchors, pathLength, ready } = useRoadAnchors(steps.length, geometry);
   const { ref: viewportRef, inView } = useInView(0.15);
   const reducedMotion = useReducedMotion();
-  const roadAnimate = pathLength > 0 || reducedMotion;
-  const contentAnimate = (inView && ready) || reducedMotion;
+  const displayAnchors = ready ? anchors : computeFallbackAnchors(steps.length);
+  const contentAnimate = inView || reducedMotion;
   const roadAspect = geometry.viewBox.width / (ROAD_VIEWBOX_HEIGHT * 0.72);
 
   return (
@@ -603,7 +587,7 @@ export function RoadmapInfographic({ months, summary, className, isPreview }: Ro
           style={{ aspectRatio: isCompact ? undefined : `${roadAspect}`, minHeight: "14rem" }}
         >
           <div
-            className={cn("relative w-full", isCompact && "min-w-max")}
+            className={cn("absolute inset-0", isCompact && "min-w-max")}
             style={isCompact ? { width: `${Math.max(100, steps.length * 14)}%`, aspectRatio: `${roadAspect}` } : undefined}
           >
             <AnimatedRoadSvg
@@ -611,21 +595,21 @@ export function RoadmapInfographic({ months, summary, className, isPreview }: Ro
               pathD={geometry.pathD}
               viewBox={geometry.viewBox}
               pathLength={pathLength}
-              animate={roadAnimate}
-              reducedMotion={reducedMotion}
             />
-            {ready
-              ? steps.map((_, index) => (
-                  <RoadPin
-                    key={steps[index]!.month}
-                    anchor={anchors[index]!}
-                    index={index}
-                    animate={contentAnimate}
-                    compact={isCompact}
-                    staggerMs={staggerMs}
-                  />
-                ))
-              : null}
+            {steps.map((_, index) => {
+              const anchor = displayAnchors[index];
+              if (!anchor) return null;
+              return (
+                <RoadPin
+                  key={steps[index]!.month}
+                  anchor={anchor}
+                  index={index}
+                  animate={contentAnimate}
+                  compact={isCompact}
+                  staggerMs={staggerMs}
+                />
+              );
+            })}
           </div>
         </div>
 
