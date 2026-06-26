@@ -5,9 +5,10 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.schemas.common import ORMModel
+from app.utils.linkedin_extract import _normalize_certification
 
 
 class SkillOut(BaseModel):
@@ -172,6 +173,18 @@ class LinkedInAnalysisOut(ORMModel):
     certifications: list | None = None
     total_experience_years: float | None = None
     status: str
+
+    @field_validator("certifications", mode="before")
+    @classmethod
+    def clean_certifications(cls, value: list | None) -> list | None:
+        if not value:
+            return value
+        cleaned = [
+            cert
+            for cert in (_normalize_certification(item) for item in value if isinstance(item, dict))
+            if cert is not None
+        ]
+        return cleaned or None
 
 
 class PortfolioProjectOut(ORMModel):

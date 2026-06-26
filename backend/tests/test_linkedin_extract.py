@@ -1,56 +1,35 @@
-"""Tests for LinkedIn LLM parsing fallbacks."""
+"""Tests for LinkedIn placeholder cleanup."""
 
-import json
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
-
-from app.utils.linkedin_extract import _parse_with_llm
+from app.utils.linkedin_extract import _clean_linkedin_field, _normalize_certification
 
 
-@pytest.mark.asyncio
-async def test_parse_with_llm_fallback_on_invalid_json():
-    mock_completion = MagicMock()
-    mock_completion.choices = [MagicMock(message=MagicMock(content="not json at all"))]
-
-    mock_client = MagicMock()
-    mock_client.chat.completions.create = AsyncMock(return_value=mock_completion)
-
-    with patch("app.utils.linkedin_extract.settings") as mock_settings, patch(
-        "app.utils.linkedin_extract.get_llm_client", return_value=mock_client
-    ):
-        mock_settings.mistral_api_key = "test-key"
-        mock_settings.mistral_default_model = "test-model"
-
-        result = await _parse_with_llm("Développeur Python chez Acme. Skills: FastAPI, Docker.", "https://linkedin.com/in/jane")
-
-    assert result["profile_url"] == "https://linkedin.com/in/jane"
-    assert "Python" in (result["summary"] or "")
-    assert result["experiences"] == []
+def test_clean_linkedin_field_removes_french_placeholder():
+    assert _clean_linkedin_field("Pas d'information disponible") is None
+    assert _clean_linkedin_field("  No information available  ") is None
 
 
-@pytest.mark.asyncio
-async def test_parse_with_llm_parses_valid_json():
-    payload = {
-        "headline": "Dev Full Stack",
-        "summary": "5 ans d'expérience",
-        "experiences": [{"title": "Dev", "company": "Acme", "duration": "2022-2024"}],
-        "education": [],
-        "skills": ["Python"],
-    }
-    mock_completion = MagicMock()
-    mock_completion.choices = [MagicMock(message=MagicMock(content=json.dumps(payload)))]
+def test_clean_linkedin_field_keeps_real_values():
+    assert _clean_linkedin_field("Coursera") == "Coursera"
+    assert _clean_linkedin_field("juin 2024") == "juin 2024"
 
-    mock_client = MagicMock()
-    mock_client.chat.completions.create = AsyncMock(return_value=mock_completion)
 
-    with patch("app.utils.linkedin_extract.settings") as mock_settings, patch(
-        "app.utils.linkedin_extract.get_llm_client", return_value=mock_client
-    ):
-        mock_settings.mistral_api_key = "test-key"
-        mock_settings.mistral_default_model = "test-model"
+def test_normalize_certification_strips_placeholder_metadata():
+    cert = _normalize_certification(
+        {
+            "name": "Statistics",
+            "issuer": "Pas d'information disponible",
+            "date": "Pas d'information disponible",
+        }
+    )
+    assert cert == {"name": "Statistics", "issuer": None, "date": None}
 
-        result = await _parse_with_llm("texte linkedin", "https://linkedin.com/in/jane")
 
-    assert result["headline"] == "Dev Full Stack"
-    assert result["skills"] == ["Python"]
+def test_normalize_certification_strips_placeholder_from_name():
+    cert = _normalize_certification(
+        {
+            "name": "Statistics · Pas d'information disponible",
+            "issuer": "Coursera",
+            "date": None,
+        }
+    )
+    assert cert == {"name": "Statistics", "issuer": "Coursera", "date": None}

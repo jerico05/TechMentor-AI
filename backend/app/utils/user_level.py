@@ -80,14 +80,6 @@ def level_to_project_difficulty(level: str | None) -> str:
     return mapping[normalize_level(level)]
 
 
-def _level_from_years(years: float) -> str:
-    if years >= YEARS_SENIOR_MIN:
-        return LEVEL_SENIOR
-    if years >= YEARS_INTERMEDIAIRE_MIN:
-        return LEVEL_INTERMEDIAIRE
-    return LEVEL_ENTRY
-
-
 def _level_from_projects(projects_completed: int) -> str:
     projects = max(0, projects_completed)
     if projects >= PROJECTS_SENIOR_MIN:
@@ -97,8 +89,17 @@ def _level_from_projects(projects_completed: int) -> str:
     return LEVEL_ENTRY
 
 
-def _max_level(*levels: str) -> str:
-    return max(levels, key=lambda slug: LEVEL_ORDER[normalize_level(slug)])
+def _min_level(*levels: str) -> str:
+    return min(levels, key=lambda slug: LEVEL_ORDER[normalize_level(slug)])
+
+
+def _max_level_allowed_by_years(years: float) -> str:
+    """Plafond de niveau selon l'experience professionnelle en entreprise."""
+    if years < YEARS_INTERMEDIAIRE_MIN:
+        return LEVEL_ENTRY
+    if years < YEARS_SENIOR_MIN:
+        return LEVEL_INTERMEDIAIRE
+    return LEVEL_SENIOR
 
 
 def compute_experience_level(
@@ -113,13 +114,17 @@ def compute_experience_level(
     - Intermediaire : 2-5 ans, 5-10+ projets
     - Senior : 5-8+ ans, 10-20+ projets
 
-    When both signals are available, the higher level is kept.
+    L'experience en entreprise fixe un plafond : des projets perso ou portfolio
+    ne peuvent pas depasser ce plafond (ex. 7 projets + 1 mois en entreprise = junior).
+    Sans LinkedIn, seuls les projets comptent.
     """
     level_projects = _level_from_projects(projects_completed)
     if experience_years is None:
         return level_projects
-    level_years = _level_from_years(max(0.0, experience_years))
-    return _max_level(level_projects, level_years)
+
+    years = max(0.0, experience_years)
+    ceiling = _max_level_allowed_by_years(years)
+    return _min_level(level_projects, ceiling)
 
 
 def experience_level_reason(
@@ -139,12 +144,11 @@ def experience_level_reason(
 
     projects_part = f"{projects_completed} projet(s) portfolio valide(s)"
 
-    if experience_years is not None and experience_years > 0:
+    if experience_years is not None and experience_years >= 0:
+        ceiling = level_label_fr(_max_level_allowed_by_years(max(0.0, experience_years)))
         return (
-            f"Niveau {label} : {years_part}, {projects_part}. "
-            f"Criteres : debutant (< {YEARS_INTERMEDIAIRE_MIN} ans ou < {PROJECTS_INTERMEDIAIRE_MIN} projets), "
-            f"intermediaire ({YEARS_INTERMEDIAIRE_MIN}-{YEARS_SENIOR_MIN} ans ou {PROJECTS_INTERMEDIAIRE_MIN}+ projets), "
-            f"senior ({YEARS_SENIOR_MIN}+ ans ou {PROJECTS_SENIOR_MIN}+ projets)."
+            f"Niveau {label} : {years_part or '0 an en entreprise'}, {projects_part}. "
+            f"Plafond selon l'experience pro : {ceiling}."
         )
 
     if projects_completed == 0:

@@ -14,7 +14,7 @@ from app.models.user_portfolio_project import UserPortfolioProject
 from app.models.user_project import UserProjectCompletion
 from app.repositories.student_profile_repository import StudentProfileRepository
 from app.utils.skill_gap_score import SkillEvidence, compute_strict_skill_gap_score
-from app.utils.user_level import compute_experience_level, normalize_level
+from app.utils.linkedin_extract import _normalize_certification
 
 
 class AnalysisService:
@@ -161,7 +161,14 @@ class AnalysisService:
         certs = result.scalar_one_or_none()
         if not isinstance(certs, list):
             return []
-        return [c for c in certs if isinstance(c, dict) and c.get("name")]
+        normalized: list[dict] = []
+        for item in certs:
+            if not isinstance(item, dict):
+                continue
+            cleaned = _normalize_certification(item)
+            if cleaned:
+                normalized.append(cleaned)
+        return normalized
 
     async def _compute_level_for_user(self, user_id: int) -> str:
         ctx = await self._experience_context(user_id)

@@ -26,15 +26,36 @@ def test_senior_from_ten_projects():
     assert compute_experience_level(projects_completed=20) == "senior"
 
 
-def test_level_from_linkedin_years():
+def test_level_from_linkedin_years_with_matching_projects():
     assert compute_experience_level(projects_completed=0, experience_years=0.5) == "entry"
-    assert compute_experience_level(projects_completed=0, experience_years=YEARS_INTERMEDIAIRE_MIN) == "intermediaire"
-    assert compute_experience_level(projects_completed=0, experience_years=YEARS_SENIOR_MIN) == "senior"
+    assert compute_experience_level(projects_completed=0, experience_years=YEARS_INTERMEDIAIRE_MIN) == "entry"
+    assert (
+        compute_experience_level(projects_completed=PROJECTS_INTERMEDIAIRE_MIN, experience_years=YEARS_INTERMEDIAIRE_MIN)
+        == "intermediaire"
+    )
+    assert (
+        compute_experience_level(projects_completed=PROJECTS_SENIOR_MIN, experience_years=YEARS_SENIOR_MIN)
+        == "senior"
+    )
 
 
-def test_level_uses_higher_signal():
-    assert compute_experience_level(projects_completed=2, experience_years=6) == "senior"
-    assert compute_experience_level(projects_completed=12, experience_years=1) == "senior"
+def test_level_capped_by_professional_experience():
+    # Cas reel : beaucoup de projets perso, tres peu d'experience en entreprise
+    assert compute_experience_level(projects_completed=7, experience_years=0.1) == "entry"
+    assert compute_experience_level(projects_completed=12, experience_years=1) == "entry"
+
+
+def test_level_intermediaire_when_both_criteria_met():
+    assert compute_experience_level(projects_completed=7, experience_years=3) == "intermediaire"
+    assert compute_experience_level(projects_completed=9, experience_years=YEARS_INTERMEDIAIRE_MIN) == "intermediaire"
+
+
+def test_level_senior_when_both_criteria_met():
+    assert compute_experience_level(projects_completed=12, experience_years=6) == "senior"
+
+
+def test_experience_without_enough_projects_stays_lower():
+    assert compute_experience_level(projects_completed=2, experience_years=6) == "entry"
 
 
 def test_legacy_level_normalized():

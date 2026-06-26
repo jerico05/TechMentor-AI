@@ -227,6 +227,10 @@ export function LinkedInSettingsPanel() {
                         {cert.issuer ? ` · ${cert.issuer}` : ""}
                         {cert.date ? (
                           <span className="block text-xs text-muted-foreground">{cert.date}</span>
+                        ) : !cert.issuer ? (
+                          <span className="block text-xs text-muted-foreground">
+                            Organisme et date non renseignés sur LinkedIn
+                          </span>
                         ) : null}
                       </li>
                     ))}

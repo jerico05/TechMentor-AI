@@ -23,6 +23,56 @@ _LINKEDIN_PDF_HINT = (
     "Sur LinkedIn : Profil > Plus > Enregistrer au format PDF, puis importez le fichier ci-dessous."
 )
 
+_PLACEHOLDER_MARKERS = (
+    "pas d'information disponible",
+    "pas d informations disponibles",
+    "no information available",
+    "information not available",
+    "non disponible",
+    "not available",
+    "n/a",
+    "na",
+    "none",
+    "null",
+    "undefined",
+)
+
+
+def _clean_linkedin_field(value: str | None) -> str | None:
+    if value is None:
+        return None
+    cleaned = re.sub(r"\s+", " ", str(value)).strip(" ·|-")
+    if not cleaned:
+        return None
+    lowered = cleaned.lower()
+    if lowered in _PLACEHOLDER_MARKERS:
+        return None
+    for marker in _PLACEHOLDER_MARKERS:
+        if marker in lowered:
+            cleaned = re.sub(re.escape(marker), "", cleaned, flags=re.I)
+            cleaned = re.sub(r"\s*[·|-]\s*$", "", cleaned).strip(" ·|-")
+            cleaned = re.sub(r"^\s*[·|-]\s*", "", cleaned).strip()
+    if not cleaned:
+        return None
+    lowered = cleaned.lower()
+    if lowered in _PLACEHOLDER_MARKERS:
+        return None
+    return cleaned[:500]
+
+
+def _normalize_certification(raw: dict) -> dict | None:
+    if not isinstance(raw, dict):
+        return None
+
+    name = _clean_linkedin_field(str(raw.get("name", "")))
+    if not name:
+        return None
+
+    issuer = _clean_linkedin_field(str(raw.get("issuer", "")) if raw.get("issuer") else None)
+    date = _clean_linkedin_field(str(raw.get("date", "")) if raw.get("date") else None)
+
+    return {"name": name[:500], "issuer": issuer, "date": date}
+
 
 async def _text_from_url_or_raise(normalized: str) -> str:
     try:
@@ -67,9 +117,13 @@ Réponds UNIQUEMENT en JSON valide :
   ],
   "skills": ["compétence1", "compétence2"],
   "certifications": [
-    {{"name": "nom du certificat", "issuer": "organisme", "date": "date ou année"}}
+    {{"name": "nom du certificat", "issuer": "organisme ou null", "date": "date ou null"}}
   ]
 }}
+
+Regles certifications :
+- Si le texte LinkedIn indique "Pas d'information disponible", mets issuer et date a null (pas ce texte).
+- name = uniquement le titre du certificat, sans l'organisme ni la date.
 
 Texte:
 {text[:6000]}"""
@@ -101,13 +155,12 @@ Texte:
         "education": data.get("education") or [],
         "skills": [str(s).strip() for s in (data.get("skills") or []) if str(s).strip()][:30],
         "certifications": [
-            {
-                "name": str(c.get("name", "")).strip(),
-                "issuer": str(c.get("issuer", "")).strip() or None,
-                "date": str(c.get("date", "")).strip() or None,
-            }
-            for c in certifications
-            if isinstance(c, dict) and str(c.get("name", "")).strip()
+            cert
+            for cert in (
+                _normalize_certification(c)
+                for c in certifications
+            )
+            if cert is not None
         ][:30],
         "total_experience_years": compute_total_experience_years(experiences),
         "raw_text": text[:4000],
