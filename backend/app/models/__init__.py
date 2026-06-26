@@ -8,6 +8,7 @@ from app.models.skill import CareerPath, CareerPathSkill, Skill, UserSkill
 from app.models.student_profile import StudentProfile
 from app.models.user import User
 from app.models.linkedin_analysis import LinkedInAnalysis
+from app.models.project_submission import ProjectSubmission
 from app.models.user_portfolio_project import UserPortfolioProject
 
 __all__ = [
@@ -28,4 +29,5 @@ __all__ = [
     "UserProjectCompletion",
     "UserPortfolioProject",
     "LinkedInAnalysis",
+    "ProjectSubmission",
 ]

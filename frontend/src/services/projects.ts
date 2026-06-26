@@ -1,7 +1,7 @@
 import { api, apiSlow } from "@/services/api";
-import type { ProjectRecommendation } from "@/types";
+import type { ProjectRecommendation, ProjectSubmission } from "@/types";
 
-export type { ProjectRecommendation, RecommendedProject, ProjectDataSource } from "@/types";
+export type { ProjectRecommendation, RecommendedProject, ProjectDataSource, ProjectSubmission } from "@/types";
 
 export async function fetchProjectRecommendations(): Promise<ProjectRecommendation> {
   const { data } = await apiSlow.get<ProjectRecommendation>("/projects/recommendations");
@@ -26,4 +26,24 @@ export async function unmarkProjectComplete(title: string): Promise<string[]> {
     data: { title },
   });
   return data.completed;
+}
+
+export interface SubmitProjectPayload {
+  project_title: string;
+  career_slug?: string | null;
+  project_description?: string;
+  skills_practiced?: string[];
+  deliverables?: string[];
+  github_url?: string | null;
+  user_description?: string | null;
+}
+
+export async function submitProjectProof(payload: SubmitProjectPayload): Promise<ProjectSubmission> {
+  const { data } = await api.post<ProjectSubmission>("/projects/submit", payload);
+  return data;
+}
+
+export async function fetchProjectSubmissions(): Promise<ProjectSubmission[]> {
+  const { data } = await api.get<ProjectSubmission[]>("/projects/submissions");
+  return data;
 }

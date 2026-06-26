@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  AlertCircle,
   BrainCircuit,
   CheckCircle2,
   Circle,
@@ -10,6 +11,7 @@ import {
   Database,
   ExternalLink,
   FolderKanban,
+  Github,
   Layers,
   Loader2,
   Rocket,
@@ -19,22 +21,26 @@ import {
   Target,
   TestTube2,
   Workflow,
+  X,
   Zap,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Motion } from "@/components/ui/motion";
 import { levelLabel } from "@/services/analysis";
 import { invalidateDashboardSummary } from "@/services/dashboard";
 import {
   fetchProjectCompletions,
   fetchProjectRecommendations,
-  markProjectComplete,
+  submitProjectProof,
   unmarkProjectComplete,
+  type SubmitProjectPayload,
 } from "@/services/projects";
 import { useAppReady } from "@/lib/use-app-ready";
 import { isApiError } from "@/services/api";
-import type { RecommendedProject } from "@/types";
+import type { ProjectSubmission, RecommendedProject } from "@/types";
 import { cn } from "@/lib/utils";
 
 const DIFFICULTY_LABELS: Record<string, string> = {
@@ -68,19 +74,203 @@ const TRACK_STYLES: Record<string, TrackStyle> = {
   dev: DEFAULT_TRACK_STYLE,
 };
 
+function ProofModal({
+  project,
+  careerSlug,
+  onClose,
+  onApproved,
+}: {
+  project: RecommendedProject;
+  careerSlug: string;
+  onClose: () => void;
+  onApproved: () => void;
+}) {
+  const [githubUrl, setGithubUrl] = React.useState("");
+  const [description, setDescription] = React.useState("");
+  const [result, setResult] = React.useState<ProjectSubmission | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: () => {
+      const payload: SubmitProjectPayload = {
+        project_title: project.title,
+        career_slug: careerSlug,
+        project_description: project.description,
+        skills_practiced: project.skills_practiced ?? [],
+        deliverables: project.deliverables ?? [],
+        github_url: githubUrl.trim() || null,
+        user_description: description.trim() || null,
+      };
+      return submitProjectProof(payload);
+    },
+    onSuccess: (data) => {
+      setResult(data);
+      if (data.status === "approved") {
+        onApproved();
+      }
+    },
+  });
+
+  const canSubmit = githubUrl.trim().length > 0 || description.trim().length >= 30;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+      <div className="relative w-full max-w-lg rounded-3xl bg-white shadow-2xl">
+        <button
+          onClick={onClose}
+          className="absolute right-4 top-4 rounded-full p-1.5 text-muted-foreground hover:bg-secondary"
+        >
+          <X className="h-4 w-4" />
+        </button>
+
+        <div className="border-b border-border/50 px-6 pt-6 pb-4">
+          <h2 className="text-lg font-extrabold text-[hsl(var(--navy))]">
+            Soumettre la preuve
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            <span className="font-medium text-[hsl(var(--navy))]">{project.title}</span> - votre travail sera evalué par l&apos;IA avant validation.
+          </p>
+        </div>
+
+        {result ? (
+          <div className="p-6 space-y-4">
+            {result.status === "approved" ? (
+              <div className="rounded-2xl border border-green-200 bg-green-50 p-4 flex items-start gap-3">
+                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-green-600" />
+                <div>
+                  <p className="font-semibold text-green-800">Projet validé !</p>
+                  <p className="mt-1 text-sm text-green-700">{result.feedback}</p>
+                  <p className="mt-2 text-xs text-green-600">Score : {result.evaluation_score}/100</p>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-orange-200 bg-orange-50 p-4 flex items-start gap-3">
+                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-orange-600" />
+                <div>
+                  <p className="font-semibold text-orange-800">Preuve insuffisante</p>
+                  <p className="mt-1 text-sm text-orange-700">{result.feedback}</p>
+                  <p className="mt-2 text-xs text-orange-600">Score : {result.evaluation_score}/100 (minimum requis : 60)</p>
+                </div>
+              </div>
+            )}
+            <div className="flex gap-2">
+              {result.status === "rejected" && (
+                <Button
+                  variant="outline"
+                  className="flex-1 rounded-2xl"
+                  onClick={() => { setResult(null); mutation.reset(); }}
+                >
+                  Reessayer
+                </Button>
+              )}
+              <Button className="flex-1 rounded-2xl" onClick={onClose}>
+                Fermer
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="p-6 space-y-4">
+            <div className="rounded-2xl border border-primary/15 bg-primary/5 p-3 text-sm text-[hsl(var(--navy))]">
+              <p className="font-semibold mb-1">Ce qui est évalué</p>
+              <ul className="space-y-0.5 text-muted-foreground text-xs">
+                {(project.deliverables ?? []).slice(0, 3).map((d) => (
+                  <li key={d} className="flex items-start gap-1.5">
+                    <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-primary" />
+                    {d}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="proof-github" className="flex items-center gap-1.5">
+                <Github className="h-3.5 w-3.5" />
+                Lien GitHub du projet
+              </Label>
+              <Input
+                id="proof-github"
+                value={githubUrl}
+                onChange={(e) => setGithubUrl(e.target.value)}
+                placeholder="https://github.com/vous/mon-projet"
+                className="input-modern"
+              />
+              <p className="text-xs text-muted-foreground">Dépôt public recommandé.</p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="proof-desc">Description de ce que vous avez réalisé</Label>
+              <textarea
+                id="proof-desc"
+                rows={4}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Décrivez ce que vous avez construit, les fonctionnalités principales, les difficultés surmontées..."
+                className="input-modern w-full resize-y rounded-2xl border border-input bg-background px-3 py-2 text-sm"
+              />
+              {!githubUrl.trim() && (
+                <p className="text-xs text-muted-foreground">
+                  Sans lien GitHub, au moins 30 caractères requis.
+                </p>
+              )}
+            </div>
+
+            {mutation.isError && (
+              <p className="text-sm text-destructive">
+                {isApiError(mutation.error) ? mutation.error.error.message : "Envoi impossible."}
+              </p>
+            )}
+
+            <div className="flex gap-2 pt-2">
+              <Button variant="outline" className="flex-1 rounded-2xl" onClick={onClose} disabled={mutation.isPending}>
+                Annuler
+              </Button>
+              <Button
+                className="flex-1 rounded-2xl btn-glow"
+                onClick={() => mutation.mutate()}
+                disabled={mutation.isPending || !canSubmit}
+              >
+                {mutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Évaluation en cours…
+                  </>
+                ) : (
+                  "Soumettre pour évaluation"
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ProjectCard({
   project,
   index,
   completed,
+  careerSlug,
   onToggle,
   toggling,
 }: {
   project: RecommendedProject;
   index: number;
   completed: boolean;
+  careerSlug: string;
   onToggle: () => void;
   toggling: boolean;
 }) {
+  const [showModal, setShowModal] = React.useState(false);
+  const queryClient = useQueryClient();
+
+  const handleApproved = React.useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["projects", "completions"] });
+    queryClient.invalidateQueries({ queryKey: ["analysis", "me"] });
+    queryClient.invalidateQueries({ queryKey: ["roadmap", "suggestion"] });
+    invalidateDashboardSummary(queryClient);
+    setShowModal(false);
+  }, [queryClient]);
+
   const track = TRACK_STYLES[project.track] ?? DEFAULT_TRACK_STYLE;
   const TrackIcon = track.icon;
   const difficulty = DIFFICULTY_LABELS[project.difficulty] ?? project.difficulty;
@@ -91,6 +281,15 @@ function ProjectCard({
   const motionDelay = Math.min(index + 2, 6) as 1 | 2 | 3 | 4 | 5 | 6;
 
   return (
+    <>
+    {showModal && (
+      <ProofModal
+        project={project}
+        careerSlug={careerSlug}
+        onClose={() => setShowModal(false)}
+        onApproved={handleApproved}
+      />
+    )}
     <Motion animation="slide-up" delay={motionDelay}>
       <article className="glass-card-interactive overflow-hidden">
         <div className={cn("bg-gradient-to-br px-5 py-4 sm:px-6", track.accent)}>
@@ -202,30 +401,35 @@ function ProjectCard({
             </div>
           )}
 
-          <Button
-            type="button"
-            variant={completed ? "secondary" : "default"}
-            className="w-full rounded-2xl"
-            disabled={toggling}
-            onClick={onToggle}
-          >
-            {toggling ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : completed ? (
-              <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" />
-            ) : (
+          {completed ? (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 rounded-2xl border border-green-200 bg-green-50 px-4 py-3">
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />
+                <span className="flex-1 text-sm font-medium text-green-800">Projet validé - compte pour votre niveau</span>
+                <button
+                  onClick={onToggle}
+                  disabled={toggling}
+                  className="rounded-xl px-2 py-1 text-xs text-muted-foreground hover:bg-green-100"
+                >
+                  {toggling ? <Loader2 className="h-3 w-3 animate-spin" /> : "Annuler"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <Button
+              type="button"
+              className="w-full rounded-2xl btn-glow"
+              disabled={toggling}
+              onClick={() => setShowModal(true)}
+            >
               <Circle className="mr-2 h-4 w-4" />
-            )}
-            {completed ? "Projet réalisé — cliquer pour annuler" : "Marquer comme réalisé"}
-          </Button>
-          {completed && (
-            <p className="text-center text-xs text-muted-foreground">
-              Ce projet compte pour votre niveau d&apos;expérience (roadmap et analyse).
-            </p>
+              J&apos;ai réalisé ce projet — soumettre la preuve
+            </Button>
           )}
         </div>
       </article>
     </Motion>
+    </>
   );
 }
 
@@ -248,9 +452,9 @@ export default function ProjectsPage() {
   const [togglingTitle, setTogglingTitle] = React.useState<string | null>(null);
 
   const toggleMutation = useMutation({
-    mutationFn: async ({ title, done, careerSlug }: { title: string; done: boolean; careerSlug: string }) => {
+    mutationFn: async ({ title }: { title: string }) => {
       setTogglingTitle(title);
-      return done ? unmarkProjectComplete(title) : markProjectComplete(title, careerSlug);
+      return unmarkProjectComplete(title);
     },
     onSuccess: (completed) => {
       queryClient.setQueryData(["projects", "completions"], completed);
@@ -336,13 +540,10 @@ export default function ProjectsPage() {
                 project={project}
                 index={i}
                 completed={completions.includes(project.title)}
+                careerSlug={data.career_slug}
                 toggling={togglingTitle === project.title}
                 onToggle={() =>
-                  toggleMutation.mutate({
-                    title: project.title,
-                    done: completions.includes(project.title),
-                    careerSlug: data.career_slug,
-                  })
+                  toggleMutation.mutate({ title: project.title })
                 }
               />
             ))}

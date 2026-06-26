@@ -124,6 +124,17 @@ export interface LinkedInAnalysis {
   status: ProcessingStatus | string;
 }
 
+export interface ProjectSubmission {
+  id: number;
+  project_title: string;
+  github_url: string | null;
+  description: string | null;
+  status: "pending" | "approved" | "rejected";
+  evaluation_score: number | null;
+  feedback: string | null;
+  created_at: string;
+}
+
 export interface PortfolioProject {
   id: number;
   url: string;

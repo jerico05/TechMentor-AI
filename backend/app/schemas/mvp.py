@@ -120,6 +120,27 @@ class ProjectCompletionsOut(BaseModel):
     completed: list[str]
 
 
+class ProjectSubmitRequest(BaseModel):
+    project_title: str
+    career_slug: str | None = None
+    project_description: str = ""
+    skills_practiced: list[str] = Field(default_factory=list)
+    deliverables: list[str] = Field(default_factory=list)
+    github_url: str | None = Field(default=None, max_length=500)
+    user_description: str | None = Field(default=None, max_length=3000)
+
+
+class ProjectSubmissionOut(ORMModel):
+    id: int
+    project_title: str
+    github_url: str | None
+    description: str | None
+    status: str
+    evaluation_score: int | None
+    feedback: str | None
+    created_at: datetime
+
+
 class QuizSubmitRequest(BaseModel):
     quiz_id: str
     answers: dict[str, int]
