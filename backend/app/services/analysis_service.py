@@ -15,6 +15,7 @@ from app.models.user_project import UserProjectCompletion
 from app.repositories.student_profile_repository import StudentProfileRepository
 from app.utils.skill_gap_score import SkillEvidence, compute_strict_skill_gap_score
 from app.utils.linkedin_extract import _normalize_certification
+from app.utils.user_level import compute_experience_level, normalize_level
 
 
 class AnalysisService:
