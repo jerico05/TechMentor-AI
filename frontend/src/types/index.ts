@@ -105,6 +105,12 @@ export interface LinkedInEducation {
   duration?: string;
 }
 
+export interface LinkedInCertification {
+  name: string;
+  issuer?: string | null;
+  date?: string | null;
+}
+
 export interface LinkedInAnalysis {
   id: number;
   profile_url: string;
@@ -113,6 +119,8 @@ export interface LinkedInAnalysis {
   experiences: LinkedInExperience[] | null;
   education: LinkedInEducation[] | null;
   skills: string[] | null;
+  certifications?: LinkedInCertification[] | null;
+  total_experience_years?: number | null;
   status: ProcessingStatus | string;
 }
 
@@ -144,6 +152,7 @@ export interface AnalysisResult {
   missing_skills: string[];
   created_at?: string;
   projects_completed?: number;
+  experience_years?: number | null;
   level_reason?: string | null;
 }
 

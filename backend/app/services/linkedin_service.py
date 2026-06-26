@@ -10,6 +10,7 @@ from app.core.logging import get_logger
 from app.models.linkedin_analysis import LinkedInAnalysis
 from app.models.skill import Skill
 from app.repositories.student_profile_repository import StudentProfileRepository
+from app.services.analysis_service import AnalysisService
 from app.utils.linkedin_extract import extract_linkedin_profile
 from app.utils.llm_helpers import extract_skills_from_text
 from app.utils.skill_sync import sync_detected_skills
@@ -59,6 +60,8 @@ class LinkedInService:
             analysis.experiences = data.get("experiences") or []
             analysis.education = data.get("education") or []
             analysis.skills = data.get("skills") or []
+            analysis.certifications = data.get("certifications") or []
+            analysis.total_experience_years = data.get("total_experience_years")
             analysis.raw_text = data.get("raw_text")
             analysis.status = "completed"
 
@@ -75,6 +78,10 @@ class LinkedInService:
             await self._sync_skills(user_id, blob)
             await self.db.commit()
             await self.db.refresh(analysis)
+
+            analysis_service = AnalysisService(self.db)
+            await analysis_service.refresh_experience_level(user_id)
+            await self.db.commit()
             logger.info("linkedin.completed", user_id=user_id)
             return analysis
         except ValidationError as exc:

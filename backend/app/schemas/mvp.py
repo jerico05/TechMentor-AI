@@ -57,6 +57,7 @@ class AnalysisOut(ORMModel):
     missing_skills: list[str]
     created_at: datetime
     projects_completed: int = 0
+    experience_years: float | None = None
     level_reason: str | None = None
 
 
@@ -168,6 +169,8 @@ class LinkedInAnalysisOut(ORMModel):
     experiences: list | None
     education: list | None
     skills: list | None
+    certifications: list | None = None
+    total_experience_years: float | None = None
     status: str
 
 

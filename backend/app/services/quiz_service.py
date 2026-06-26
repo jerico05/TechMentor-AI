@@ -16,6 +16,7 @@ from app.models.analysis import AnalysisHistory, Quiz, QuizAttempt
 from app.services.analysis_service import AnalysisService
 from app.services.roadmap_service import RoadmapService
 from app.services.llm_client import get_llm_client
+from app.utils.skill_gap_score import SkillEvidence
 from app.utils.user_level import compute_experience_level
 
 
@@ -130,17 +131,27 @@ Réponds UNIQUEMENT en JSON:
 
         latest = await self.analysis.get_latest(user_id)
         previous_score = latest.score if latest else 0
-        owned = list(latest.owned_skills) if latest else []
-        missing = list(latest.missing_skills) if latest else []
         career_path_id = quiz.career_path_id
+        career = await self.analysis.get_career(career_path_id)
 
-        if quiz_score >= 80 and missing:
-            owned.append(missing.pop(0))
+        extra_evidence: dict[str, SkillEvidence] = {}
+        if quiz_score >= 80 and latest and latest.missing_skills:
+            validated_skill = latest.missing_skills[0]
+            extra_evidence[validated_skill] = SkillEvidence(
+                confidence=min(95, max(80, quiz_score)),
+                source="manual",
+            )
 
-        quiz_bonus = int(quiz_score * 0.2)
-        new_score = min(100, previous_score + quiz_bonus)
+        new_score, owned, missing = await self.analysis.compute_career_skill_gap(
+            user_id,
+            career,
+            extra_evidence=extra_evidence or None,
+        )
         ctx = await self.analysis._experience_context(user_id)
-        new_level = compute_experience_level(projects_completed=ctx["projects_completed"])
+        new_level = compute_experience_level(
+            projects_completed=ctx["projects_completed"],
+            experience_years=ctx.get("experience_years"),
+        )
 
         reassessment = AnalysisHistory(
             user_id=user_id,

@@ -20,6 +20,7 @@ def get_analysis_service(db: DBSession) -> AnalysisService:
 async def _to_analysis_out(service: AnalysisService, record: AnalysisHistory) -> AnalysisOut:
     ctx = await service._experience_context(record.user_id)
     projects_completed = ctx["projects_completed"]
+    experience_years = ctx.get("experience_years")
     profile_academic = ctx.get("academic_level")
     level = normalize_level(record.level)
     return AnalysisOut(
@@ -31,9 +32,11 @@ async def _to_analysis_out(service: AnalysisService, record: AnalysisHistory) ->
         missing_skills=record.missing_skills,
         created_at=record.created_at,
         projects_completed=projects_completed,
+        experience_years=experience_years,
         level_reason=experience_level_reason(
             level=level,
             projects_completed=projects_completed,
+            experience_years=experience_years,
             academic_level=profile_academic,
         ),
     )

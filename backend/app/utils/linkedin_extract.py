@@ -14,6 +14,7 @@ from app.utils.linkedin_fetch import (
     extract_text_from_linkedin_pdf,
     fetch_linkedin_html,
 )
+from app.utils.linkedin_experience import compute_total_experience_years
 from app.utils.url_extract import extract_linkedin_slug, normalize_url
 
 logger = get_logger(__name__)
@@ -46,6 +47,7 @@ async def _parse_with_llm(text: str, normalized: str) -> dict:
         "experiences": [],
         "education": [],
         "skills": [],
+        "certifications": [],
         "raw_text": text[:4000],
     }
 
@@ -63,7 +65,10 @@ Réponds UNIQUEMENT en JSON valide :
   "education": [
     {{"school": "école", "degree": "diplôme", "duration": "dates"}}
   ],
-  "skills": ["compétence1", "compétence2"]
+  "skills": ["compétence1", "compétence2"],
+  "certifications": [
+    {{"name": "nom du certificat", "issuer": "organisme", "date": "date ou année"}}
+  ]
 }}
 
 Texte:
@@ -86,13 +91,25 @@ Texte:
         logger.warning("linkedin.llm_parse.failed", error=str(exc))
         return fallback
 
+    experiences = data.get("experiences") or []
+    certifications = data.get("certifications") or []
     return {
         "profile_url": normalized,
         "headline": (str(data.get("headline")).strip()[:500] if data.get("headline") else None),
         "summary": (str(data.get("summary")).strip()[:2000] if data.get("summary") else fallback["summary"]),
-        "experiences": data.get("experiences") or [],
+        "experiences": experiences,
         "education": data.get("education") or [],
         "skills": [str(s).strip() for s in (data.get("skills") or []) if str(s).strip()][:30],
+        "certifications": [
+            {
+                "name": str(c.get("name", "")).strip(),
+                "issuer": str(c.get("issuer", "")).strip() or None,
+                "date": str(c.get("date", "")).strip() or None,
+            }
+            for c in certifications
+            if isinstance(c, dict) and str(c.get("name", "")).strip()
+        ][:30],
+        "total_experience_years": compute_total_experience_years(experiences),
         "raw_text": text[:4000],
     }
 

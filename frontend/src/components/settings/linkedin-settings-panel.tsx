@@ -198,6 +198,12 @@ export function LinkedInSettingsPanel() {
               {(analysis.experiences?.length ?? 0) > 0 ? (
                 <div>
                   <p className="mb-2 text-sm font-medium">Expériences</p>
+                  {analysis.total_experience_years != null && analysis.total_experience_years > 0 ? (
+                    <p className="mb-2 text-xs text-muted-foreground">
+                      Total : {analysis.total_experience_years} an
+                      {analysis.total_experience_years > 1 ? "s" : ""} d&apos;expérience professionnelle
+                    </p>
+                  ) : null}
                   <ul className="space-y-2 text-sm">
                     {analysis.experiences!.slice(0, 5).map((exp, i) => (
                       <li key={`${exp.title}-${i}`} className="rounded-xl bg-secondary/50 px-3 py-2">
@@ -209,6 +215,25 @@ export function LinkedInSettingsPanel() {
                       </li>
                     ))}
                   </ul>
+                </div>
+              ) : null}
+              {(analysis.certifications?.length ?? 0) > 0 ? (
+                <div>
+                  <p className="mb-2 text-sm font-medium">Certifications</p>
+                  <ul className="space-y-2 text-sm">
+                    {analysis.certifications!.slice(0, 8).map((cert, i) => (
+                      <li key={`${cert.name}-${i}`} className="rounded-xl bg-secondary/50 px-3 py-2">
+                        <span className="font-medium">{cert.name}</span>
+                        {cert.issuer ? ` · ${cert.issuer}` : ""}
+                        {cert.date ? (
+                          <span className="block text-xs text-muted-foreground">{cert.date}</span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Ces certifications ne seront pas reproposées dans votre roadmap.
+                  </p>
                 </div>
               ) : null}
               {(analysis.skills?.length ?? 0) > 0 ? (

@@ -21,10 +21,10 @@ export async function fetchAnalysisHistory(): Promise<AnalysisResult[]> {
 }
 
 const LEVEL_LABELS: Record<string, string> = {
-  entry: "Entry level",
+  entry: "Débutant (Junior)",
   intermediaire: "Intermédiaire",
   senior: "Senior",
-  debutant: "Entry level",
+  debutant: "Débutant (Junior)",
   avance: "Senior",
 };
 

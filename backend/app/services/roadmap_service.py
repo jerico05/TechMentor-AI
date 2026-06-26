@@ -87,12 +87,26 @@ class RoadmapService:
         level_guidance = ROADMAP_LEVEL_GUIDANCE.get(level_slug, "")
         level_display = level_label_fr(latest.level)
         projects_done = await self.analysis.count_completed_projects(user_id)
+        experience_years = await self.analysis._linkedin_experience_years(user_id)
+        certifications = await self.analysis.get_linkedin_certifications(user_id)
+        cert_names = [str(c.get("name", "")).strip() for c in certifications if c.get("name")]
+        cert_block = ""
+        if cert_names:
+            cert_block = (
+                f"- Certifications deja obtenues (NE PAS les reproposer dans la roadmap) : "
+                f"{', '.join(cert_names)}."
+            )
+        years_block = ""
+        if experience_years is not None and experience_years > 0:
+            years_block = f"- Annees d'experience LinkedIn (cumul des postes) : {experience_years}."
         prompt = f"""Génère une roadmap d'apprentissage personnalisée sur {months} mois pour devenir {career.name}.
 
 Profil étudiant :
-- Niveau d'expérience : {level_display} ({level_slug}) — ce niveau DOIT fortement influencer le rythme et la profondeur.
+- Niveau d'expérience : {level_display} ({level_slug}) - ce niveau DOIT fortement influencer le rythme et la profondeur.
 - Projets portfolio déjà réalisés et validés : {projects_done}.
-- Score de préparation métier (écarts de compétences) : {latest.score}/100 — indique le % de compétences du métier déjà déclarées, PAS le niveau d'expérience.
+{years_block}
+{cert_block}
+- Score de préparation métier (écarts de compétences) : {latest.score}/100 - indique le % de compétences du métier déjà déclarées, PAS le niveau d'expérience.
 - Compétences acquises : {', '.join(latest.owned_skills) or 'aucune'}.
 - Compétences manquantes à combler : {', '.join(latest.missing_skills) or 'aucune'}.
 
@@ -120,7 +134,8 @@ Cours recommandés (OBLIGATOIRE pour chaque mois) :
 - Utilise EN PRIORITÉ les URLs de la section "Sources verifiées" ci-dessus, sans les modifier.
 - N'invente JAMAIS d'URL : pas de liens fictifs, pas de slugs devinés sur Coursera/Udemy/YouTube.
 - Si aucune source verifiee ne correspond exactement au mois, choisis la ressource la plus proche dans la liste verifiee.
-- Adapter chaque cours au métier {career.name}, au niveau {level_display} et aux compétences du mois."""
+- Adapter chaque cours au métier {career.name}, au niveau {level_display} et aux compétences du mois.
+- Ne recommande AUCUN cours ou certification deja listé dans les certifications obtenues ci-dessus."""
 
         if not settings.mistral_api_key or settings.mistral_api_key == "change-me":
             raise ValidationError(
