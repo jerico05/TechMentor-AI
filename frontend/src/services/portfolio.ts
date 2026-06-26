@@ -21,9 +21,14 @@ export async function deletePortfolioProject(projectId: number): Promise<Portfol
 }
 
 export async function savePortfolioUrl(portfolioUrl: string | null): Promise<PortfolioProjectsResponse> {
-  const { data } = await api.put<PortfolioProjectsResponse>("/portfolio/url", {
-    portfolio_url: portfolioUrl,
-  });
+  const { data } = await apiSlow.put<PortfolioProjectsResponse>(
+    "/portfolio/url",
+    {
+      portfolio_url: portfolioUrl,
+      extract_projects: Boolean(portfolioUrl?.trim()),
+    },
+    { timeout: 120_000 },
+  );
   return data;
 }
 

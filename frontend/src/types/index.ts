@@ -131,6 +131,8 @@ export interface PortfolioProjectsResponse {
   projects: PortfolioProject[];
   portfolio_url: string | null;
   total_completed: number;
+  projects_discovered?: number;
+  projects_added?: number;
 }
 
 export interface AnalysisResult {

@@ -22,7 +22,13 @@ def get_portfolio_service(db: DBSession) -> PortfolioProjectService:
     return PortfolioProjectService(db)
 
 
-async def _portfolio_out(db: DBSession, user_id: int) -> PortfolioProjectsOut:
+async def _portfolio_out(
+    db: DBSession,
+    user_id: int,
+    *,
+    projects_discovered: int = 0,
+    projects_added: int = 0,
+) -> PortfolioProjectsOut:
     service = PortfolioProjectService(db)
     analysis = AnalysisService(db)
     profile_repo = StudentProfileRepository(db)
@@ -33,6 +39,8 @@ async def _portfolio_out(db: DBSession, user_id: int) -> PortfolioProjectsOut:
         projects=[PortfolioProjectOut.model_validate(p) for p in projects],
         portfolio_url=profile.portfolio_url if profile else None,
         total_completed=completed,
+        projects_discovered=projects_discovered,
+        projects_added=projects_added,
     )
 
 
@@ -72,5 +80,14 @@ async def save_portfolio_url(
     db: DBSession,
     service: PortfolioProjectService = Depends(get_portfolio_service),
 ) -> PortfolioProjectsOut:
-    await service.save_portfolio_url(current.id, payload.portfolio_url)
-    return await _portfolio_out(db, current.id)
+    discovered, added = await service.save_portfolio_url(
+        current.id,
+        payload.portfolio_url,
+        extract_projects=payload.extract_projects,
+    )
+    return await _portfolio_out(
+        db,
+        current.id,
+        projects_discovered=discovered,
+        projects_added=added,
+    )

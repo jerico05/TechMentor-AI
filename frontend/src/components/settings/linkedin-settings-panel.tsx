@@ -61,6 +61,9 @@ export function LinkedInSettingsPanel() {
 
   const statusInfo = analysis ? linkedInStatusLabel(analysis.status) : null;
   const isProcessing = analysis?.status === "processing" || mutation.isPending;
+  const hasPdf = Boolean(pdfFile);
+  const hasEnoughText = profileText.trim().length >= 80;
+  const canAnalyze = Boolean(url.trim()) && (hasPdf || hasEnoughText);
 
   return (
     <div className="space-y-6">
@@ -125,7 +128,7 @@ export function LinkedInSettingsPanel() {
 
         <Button
           onClick={() => mutation.mutate()}
-          disabled={isProcessing || !url.trim()}
+          disabled={isProcessing || !canAnalyze}
           className="rounded-2xl"
         >
           {isProcessing ? (
@@ -146,6 +149,12 @@ export function LinkedInSettingsPanel() {
             {isApiError(mutation.error) ? mutation.error.error.message : "Analyse impossible."}
           </p>
         )}
+        {!canAnalyze && url.trim() && !isProcessing ? (
+          <p className="text-sm text-amber-700">
+            Importez l&apos;export PDF LinkedIn ou collez au moins 80 caractères de votre profil.
+            L&apos;extraction depuis l&apos;URL seule est bloquée par LinkedIn.
+          </p>
+        ) : null}
       </div>
 
       {isLoading ? (
@@ -224,7 +233,7 @@ export function LinkedInSettingsPanel() {
             variant="outline"
             size="sm"
             onClick={() => mutation.mutate()}
-            disabled={isProcessing || !url.trim()}
+            disabled={isProcessing || !canAnalyze}
             className="w-full rounded-xl sm:w-auto"
           >
             <RefreshCw className="mr-2 h-4 w-4" /> Actualiser

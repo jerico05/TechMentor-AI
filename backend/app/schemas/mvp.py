@@ -190,7 +190,10 @@ class PortfolioProjectsOut(BaseModel):
     projects: list[PortfolioProjectOut]
     portfolio_url: str | None = None
     total_completed: int = 0
+    projects_discovered: int = 0
+    projects_added: int = 0
 
 
 class PortfolioUrlRequest(BaseModel):
     portfolio_url: str | None = None
+    extract_projects: bool = True

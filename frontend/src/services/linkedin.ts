@@ -13,9 +13,7 @@ export async function analyzeLinkedIn(
     form.append("linkedin_url", linkedinUrl ?? "");
     if (profileText?.trim()) form.append("profile_text", profileText.trim());
     form.append("pdf_file", pdfFile);
-    const { data } = await apiSlow.post<LinkedInAnalysis>("/linkedin/analyze/pdf", form, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    const { data } = await apiSlow.post<LinkedInAnalysis>("/linkedin/analyze/pdf", form);
     return data;
   }
 

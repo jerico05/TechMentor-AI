@@ -116,6 +116,7 @@ export function PortfolioSettingsPanel() {
   const [projectUrl, setProjectUrl] = React.useState("");
   const [siteUrl, setSiteUrl] = React.useState("");
   const [deletingId, setDeletingId] = React.useState<number | null>(null);
+  const [extractMessage, setExtractMessage] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (data?.portfolio_url) setSiteUrl(data.portfolio_url);
@@ -131,7 +132,19 @@ export function PortfolioSettingsPanel() {
 
   const siteMutation = useMutation({
     mutationFn: () => savePortfolioUrl(siteUrl.trim() || null),
-    onSuccess: () => invalidatePortfolioQueries(queryClient),
+    onSuccess: (result) => {
+      invalidatePortfolioQueries(queryClient);
+      if (result.projects_added && result.projects_added > 0) {
+        setExtractMessage(
+          `${result.projects_discovered ?? result.projects_added} projet(s) détecté(s), ${result.projects_added} ajouté(s) et analysé(s).`,
+        );
+      } else if (siteUrl.trim()) {
+        setExtractMessage("URL enregistrée. Aucun nouveau projet détecté sur ce site.");
+      } else {
+        setExtractMessage(null);
+      }
+    },
+    onError: () => setExtractMessage(null),
   });
 
   const deleteMutation = useMutation({
@@ -193,6 +206,10 @@ export function PortfolioSettingsPanel() {
       </div>
 
       <div className="glass-card space-y-4 p-6">
+        <p className="text-sm text-muted-foreground">
+          Collez l&apos;URL de votre site portfolio : nous détectons automatiquement les liens vers vos projets
+          (GitHub, demos, pages projet) et les analysons pour votre niveau d&apos;expérience.
+        </p>
         <div className="space-y-1.5">
           <Label htmlFor="portfolio-site-url">Site portfolio (optionnel)</Label>
           <Input
@@ -206,7 +223,7 @@ export function PortfolioSettingsPanel() {
         <Button
           variant="outline"
           onClick={() => siteMutation.mutate()}
-          disabled={siteMutation.isPending}
+          disabled={siteMutation.isPending || !siteUrl.trim()}
           className="rounded-2xl"
         >
           {siteMutation.isPending ? (
@@ -214,8 +231,18 @@ export function PortfolioSettingsPanel() {
           ) : (
             <Save className="mr-2 h-4 w-4" />
           )}
-          Enregistrer l&apos;URL portfolio
+          {siteMutation.isPending ? "Analyse du portfolio…" : "Enregistrer et analyser le portfolio"}
         </Button>
+        {extractMessage ? (
+          <p className="text-sm text-green-600">{extractMessage}</p>
+        ) : null}
+        {siteMutation.isError ? (
+          <p className="text-sm text-destructive">
+            {isApiError(siteMutation.error)
+              ? siteMutation.error.error.message
+              : "Analyse du portfolio impossible."}
+          </p>
+        ) : null}
       </div>
 
       {isLoading ? (

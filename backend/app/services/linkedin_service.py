@@ -77,11 +77,11 @@ class LinkedInService:
             await self.db.refresh(analysis)
             logger.info("linkedin.completed", user_id=user_id)
             return analysis
-        except ValidationError:
+        except ValidationError as exc:
             analysis.status = "failed"
             await self.db.commit()
             await self.db.refresh(analysis)
-            raise
+            raise exc
         except Exception as exc:
             analysis.status = "failed"
             await self.db.commit()

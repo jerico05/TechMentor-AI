@@ -10,6 +10,7 @@ from app.core.logging import get_logger
 from app.models.user_portfolio_project import UserPortfolioProject
 from app.repositories.student_profile_repository import StudentProfileRepository
 from app.services.analysis_service import AnalysisService
+from app.utils.portfolio_site_extract import discover_project_urls
 from app.utils.project_extract import extract_project_from_url
 from app.utils.url_extract import normalize_url
 
@@ -98,6 +99,52 @@ class PortfolioProjectService:
         await self.analysis.refresh_experience_level(user_id)
         return await self.list_for_user(user_id)
 
-    async def save_portfolio_url(self, user_id: int, portfolio_url: str | None) -> None:
+    async def save_portfolio_url(
+        self,
+        user_id: int,
+        portfolio_url: str | None,
+        *,
+        extract_projects: bool = True,
+    ) -> tuple[int, int]:
+        """Save portfolio site URL and optionally discover project links."""
         url = normalize_url(portfolio_url) if portfolio_url else None
         await self.profile_repo.upsert_for_user(user_id, {"portfolio_url": url})
+
+        discovered = 0
+        added = 0
+        if not url or not extract_projects:
+            return discovered, added
+
+        try:
+            project_urls = await discover_project_urls(url)
+        except ValidationError:
+            raise
+        except Exception as exc:
+            logger.warning("portfolio.site.extract_failed", user_id=user_id, error=str(exc))
+            raise ValidationError(
+                "Impossible d'analyser ce site portfolio. Vérifiez l'URL ou ajoutez vos projets un par un."
+            ) from exc
+
+        discovered = len(project_urls)
+        for project_url in project_urls:
+            try:
+                await self.add_project(user_id, project_url)
+                added += 1
+            except ValidationError as exc:
+                if "déjà enregistré" in str(exc).lower():
+                    continue
+                logger.warning(
+                    "portfolio.site.project_skip",
+                    user_id=user_id,
+                    url=project_url,
+                    error=str(exc),
+                )
+
+        if discovered > 0 and added == 0:
+            logger.info(
+                "portfolio.site.all_existing",
+                user_id=user_id,
+                discovered=discovered,
+            )
+
+        return discovered, added
