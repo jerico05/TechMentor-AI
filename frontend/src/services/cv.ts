@@ -15,7 +15,6 @@ export async function uploadCV(file: File): Promise<CVFile> {
   const token = await getFirebaseIdToken();
   const { data } = await apiSlow.post<CVFile>("/cv/upload", form, {
     headers: {
-      "Content-Type": "multipart/form-data",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     timeout: 60_000,

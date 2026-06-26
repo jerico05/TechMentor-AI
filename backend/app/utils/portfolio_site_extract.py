@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import re
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 import httpx
 
@@ -21,6 +21,9 @@ from app.utils.url_extract import (
 )
 
 logger = get_logger(__name__)
+
+_SCRIPT_SRC_RE = re.compile(r"""<script[^>]+src=["']([^"']+)["']""", re.I)
+_EMBEDDED_URL_RE = re.compile(r"""https?://[^\s"'`<>\\]+""")
 
 _SKIP_DOMAINS = {
     "linkedin.com",
@@ -74,9 +77,9 @@ def _is_likely_project_url(url: str, portfolio_host: str) -> bool:
 
     if host.endswith("github.io") and path:
         return True
-    if host.endswith("vercel.app") and path and host != portfolio_host:
+    if host.endswith("vercel.app") and host != portfolio_host:
         return True
-    if host.endswith("netlify.app") and path and host != portfolio_host:
+    if host.endswith("netlify.app") and host != portfolio_host:
         return True
 
     if host == portfolio_host and path:
@@ -94,6 +97,39 @@ def _is_likely_project_url(url: str, portfolio_host: str) -> bool:
         if len(segments) == 1 and len(segments[0]) > 3:
             return segments[0].lower() not in {"home", "index", "about", "contact", "blog"}
     return False
+
+
+def _normalize_embedded_url(raw: str) -> str | None:
+    cleaned = raw.rstrip(".,;)'\"\\")
+    if not cleaned.startswith(("http://", "https://")):
+        return None
+    try:
+        return normalize_url(cleaned)
+    except ValidationError:
+        return None
+
+
+async def _discover_urls_in_spa_bundles(html: str, base_url: str, portfolio_host: str) -> set[str]:
+    """React/Vite SPAs often embed project links only inside JS bundles."""
+    discovered: set[str] = set()
+
+    for src in _SCRIPT_SRC_RE.findall(html):
+        if ".js" not in src.lower():
+            continue
+        bundle_url = urljoin(base_url, src)
+        try:
+            bundle_text = await fetch_page_html(bundle_url)
+        except httpx.HTTPError:
+            continue
+
+        for match in _EMBEDDED_URL_RE.finditer(bundle_text):
+            candidate = _normalize_embedded_url(match.group(0))
+            if not candidate:
+                continue
+            if _is_likely_project_url(candidate, portfolio_host):
+                discovered.add(candidate)
+
+    return discovered
 
 
 async def _llm_rank_project_urls(
@@ -159,12 +195,16 @@ async def discover_project_urls(portfolio_url: str, *, max_urls: int = 10) -> li
 
     discovered: set[str] = set()
     combined_text_parts: list[str] = []
+    main_html = ""
 
     for page_url in pages_to_scan:
         try:
             html = await fetch_page_html(page_url)
         except httpx.HTTPError:
             continue
+
+        if page_url == normalized:
+            main_html = html
 
         combined_text_parts.append(html_to_text(html)[:4000])
         for link in extract_hrefs(html, page_url):
@@ -173,10 +213,20 @@ async def discover_project_urls(portfolio_url: str, *, max_urls: int = 10) -> li
             if _is_likely_project_url(link, portfolio_host):
                 discovered.add(link.rstrip("/"))
 
+    if not discovered and main_html:
+        discovered |= await _discover_urls_in_spa_bundles(main_html, normalized, portfolio_host)
+        if discovered:
+            logger.info(
+                "portfolio.site.spa_bundles",
+                portfolio_url=normalized,
+                count=len(discovered),
+            )
+
     if not discovered:
         raise ValidationError(
-            "Aucun projet détecté sur ce site. Ajoutez les liens GitHub ou demo manuellement "
-            "dans la section « Lien du projet »."
+            "Aucun projet détecté sur ce site. Les portfolios React/Vite sont pris en charge "
+            "si les liens GitHub ou demos sont présents dans le code. Sinon, ajoutez chaque "
+            "projet manuellement dans « Lien du projet »."
         )
 
     candidates = sorted(discovered)
