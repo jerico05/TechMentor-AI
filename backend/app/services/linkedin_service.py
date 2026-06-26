@@ -96,4 +96,10 @@ class LinkedInService:
         known = [r[0] for r in rows.all()]
         detected = await extract_skills_from_text(text, known)
         if detected:
-            await sync_detected_skills(self.db, user_id, detected)
+            await sync_detected_skills(
+                self.db,
+                user_id,
+                detected,
+                source="linkedin",
+                confidence=80,
+            )
