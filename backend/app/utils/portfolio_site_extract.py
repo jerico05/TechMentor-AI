@@ -101,6 +101,8 @@ def _is_likely_project_url(url: str, portfolio_host: str) -> bool:
 
 def _normalize_embedded_url(raw: str) -> str | None:
     cleaned = raw.rstrip(".,;)'\"\\")
+    if cleaned.endswith(".git"):
+        cleaned = cleaned[:-4]
     if not cleaned.startswith(("http://", "https://")):
         return None
     try:

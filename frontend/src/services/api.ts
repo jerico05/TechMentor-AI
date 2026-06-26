@@ -119,6 +119,7 @@ for (const client of [apiSlow]) {
 
 api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   stripJsonContentTypeForFormData(config);
+  const existingAuth = config.headers?.Authorization ?? config.headers?.authorization;
   if (existingAuth) {
     return config;
   }

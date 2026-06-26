@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +14,7 @@ from app.models.github_analysis import GitHubAnalysis
 from app.models.skill import Skill
 from app.repositories.student_profile_repository import StudentProfileRepository
 from app.utils.cv_parser import extract_github_username
+from app.utils.github_api import github_get
 from app.utils.llm_helpers import extract_skills_from_text
 from app.utils.skill_sync import sync_detected_skills
 
@@ -24,28 +24,24 @@ logger = get_logger(__name__)
 async def fetch_github_profile(
     username: str,
 ) -> tuple[dict, list, dict[str, int], list[str]]:
-    headers = {"Accept": "application/vnd.github+json"}
-    if settings.github_api_token:
-        headers["Authorization"] = f"Bearer {settings.github_api_token}"
+    user_resp = await github_get(f"https://api.github.com/users/{username}", timeout=25.0)
+    if user_resp.status_code == 404:
+        raise ValidationError(f"Compte GitHub introuvable : @{username}")
+    user_resp.raise_for_status()
+    user_data = user_resp.json()
 
-    async with httpx.AsyncClient(timeout=25.0, headers=headers) as client:
-        user_resp = await client.get(f"https://api.github.com/users/{username}")
-        if user_resp.status_code == 404:
-            raise ValidationError(f"Compte GitHub introuvable : @{username}")
-        user_resp.raise_for_status()
-        user_data = user_resp.json()
-
-        repos_resp = await client.get(
-            f"https://api.github.com/users/{username}/repos",
-            params={"per_page": 30, "sort": "updated"},
+    repos_resp = await github_get(
+        f"https://api.github.com/users/{username}/repos",
+        timeout=25.0,
+        params={"per_page": 30, "sort": "updated"},
+    )
+    if repos_resp.status_code == 403:
+        raise ValidationError(
+            "Limite de l'API GitHub atteinte. Réessayez dans quelques minutes "
+            "ou configurez GITHUB_API_TOKEN."
         )
-        if repos_resp.status_code == 403:
-            raise ValidationError(
-                "Limite de l'API GitHub atteinte. Réessayez dans quelques minutes "
-                "ou configurez GITHUB_API_TOKEN."
-            )
-        repos_resp.raise_for_status()
-        repos = repos_resp.json()
+    repos_resp.raise_for_status()
+    repos = repos_resp.json()
 
     languages: dict[str, int] = {}
     technologies: set[str] = set()

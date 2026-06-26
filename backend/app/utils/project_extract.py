@@ -11,22 +11,23 @@ from app.core.config import settings
 from app.core.exceptions import ValidationError
 from app.core.logging import get_logger
 from app.services.llm_client import get_llm_client
+from app.utils.github_api import github_get
 from app.utils.url_extract import fetch_page_text, normalize_url, parse_github_repo_url
 
 logger = get_logger(__name__)
 
 
 async def _fetch_github_repo(owner: str, repo: str) -> dict:
-    headers = {"Accept": "application/vnd.github+json"}
-    if settings.github_api_token:
-        headers["Authorization"] = f"Bearer {settings.github_api_token}"
-
-    async with httpx.AsyncClient(timeout=20.0, headers=headers) as client:
-        response = await client.get(f"https://api.github.com/repos/{owner}/{repo}")
-        if response.status_code == 404:
-            raise ValidationError(f"Dépôt GitHub introuvable : {owner}/{repo}")
-        response.raise_for_status()
-        return response.json()
+    response = await github_get(f"https://api.github.com/repos/{owner}/{repo}")
+    if response.status_code == 404:
+        raise ValidationError(f"Dépôt GitHub introuvable : {owner}/{repo}")
+    if response.status_code == 403:
+        raise ValidationError(
+            "Limite de l'API GitHub atteinte. Réessayez dans quelques minutes "
+            "ou configurez GITHUB_API_TOKEN."
+        )
+    response.raise_for_status()
+    return response.json()
 
 
 async def _extract_with_llm(url: str, page_text: str) -> dict:
@@ -87,9 +88,12 @@ async def extract_project_from_url(url: str) -> dict:
         raise ValidationError(f"Impossible d'accéder à cette URL : {exc}") from exc
 
     if len(page_text) < 40:
-        raise ValidationError(
-            "Contenu insuffisant sur cette page. Essayez un lien direct vers le projet "
-            "(repo GitHub, demo, case study)."
+        from urllib.parse import urlparse
+
+        host = urlparse(normalized).netloc
+        page_text = (
+            f"Application web déployée : {normalized}. "
+            f"Hébergement : {host}. Analysez ce projet portfolio à partir de son URL."
         )
 
     parsed = await _extract_with_llm(normalized, page_text)
